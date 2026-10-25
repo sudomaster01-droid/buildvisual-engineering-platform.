@@ -236,11 +236,7 @@ class Settings(BaseSettings):
 
     @property
     def resolved_llm_provider(self) -> LlmProviderName:
-        if self.llm_provider != "none":
-            return self.llm_provider
-        if self.gemini_api_key:
-            return "gemini"
-        return "none"
+        return self.llm_provider
 
     @property
     def transcription_available(self) -> bool:

@@ -204,6 +204,19 @@ def test_production_settings_reject_hosted_video_and_vision_providers():
         Settings(**secure, llm_provider="openai")
 
 
+def test_video_credentials_do_not_implicitly_enable_hosted_interpretation():
+    from app.config import Settings
+
+    settings = Settings(
+        app_env="test",
+        llm_provider="none",
+        gemini_api_key="configured-video-credential",
+        llm_api_key="configured-llm-credential",
+    )
+    assert settings.resolved_llm_provider == "none"
+    assert not settings.capabilities()["drawing_interpretation"]
+
+
 def test_generation_step_does_not_retry_every_scene_as_a_group():
     from app.pipeline.runner import STEP_BY_NAME
 
