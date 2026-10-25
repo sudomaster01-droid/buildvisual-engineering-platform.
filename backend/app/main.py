@@ -11,9 +11,10 @@ import logging
 import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
+from urllib.parse import quote
 
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -22,13 +23,22 @@ from .config import get_settings
 from .db import migrate, session_scope, utcnow
 from .errors import AuthError, BuildVisualError
 from .logging_setup import configure_logging
-from .security import CSRF_HEADER, ensure_engineer_account
+from .security import CSRF_COOKIE, CSRF_HEADER, ensure_engineer_account
 
 log = logging.getLogger("buildvisual.app")
 STATIC_DIR = Path(__file__).parent / "static"
-#: Endpoints the browser must reach before a session (and therefore a CSRF
-#: token) exists. Nothing here changes state except by authenticating.
-CSRF_EXEMPT = {"/api/auth/login", "/api/auth/password-reset"}
+PUBLIC_AUTH_MUTATIONS = {
+    "/api/auth/login",
+    "/api/auth/register",
+    "/api/auth/password-reset",
+    "/api/auth/password-reset/confirm",
+}
+PUBLIC_PAGES = {"/signin", "/signup", "/reset-password"}
+PUBLIC_PATHS = PUBLIC_PAGES | {
+    "/favicon.svg",
+    "/healthz",
+    "/readyz",
+}
 
 
 class SecurityMiddleware(BaseHTTPMiddleware):
@@ -36,19 +46,31 @@ class SecurityMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         from .errors import PermissionDenied
-        from .security import constant_time_equals
+        from .security import constant_time_equals, current_user_optional
 
         request_id = request.headers.get("x-request-id") or uuid.uuid4().hex[:16]
         request.state.request_id = request_id
 
+        path = request.url.path
+        if (
+            request.method == "GET"
+            and path not in PUBLIC_PATHS
+            and not path.startswith(("/api/", "/static/", "/share/"))
+        ):
+            with session_scope() as db:
+                user = current_user_optional(request, db)
+            if user is None:
+                attempted = path + (f"?{request.url.query}" if request.url.query else "")
+                return RedirectResponse(
+                    f"/signin?next={quote(attempted, safe='')}", status_code=303
+                )
+
         if request.method not in ("GET", "HEAD", "OPTIONS"):
-            path = request.url.path
-            if path.startswith("/api") and path not in CSRF_EXEMPT:
-                csrf_cookie = request.cookies.get("bv_csrf", "")
+            if path.startswith("/api/"):
+                csrf_cookie = request.cookies.get(CSRF_COOKIE, "")
                 header = request.headers.get(CSRF_HEADER, "")
-                if not request.cookies.get("bv_session"):
-                    # No session at all: let authentication answer with 401 rather
-                    # than reporting a CSRF failure the user cannot act on.
+                is_public_auth = path in PUBLIC_AUTH_MUTATIONS
+                if not is_public_auth and not request.cookies.get("bv_session"):
                     return _error_response(
                         AuthError("Please sign in to continue."), request_id
                     )
@@ -77,6 +99,10 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         )
         if request.url.path.startswith("/api"):
             response.headers.setdefault("Cache-Control", "no-store")
+        elif request.url.path.startswith("/static/") or request.url.path in (
+            "/", *PUBLIC_PAGES
+        ):
+            response.headers.setdefault("Cache-Control", "no-cache")
         return response
 
 
@@ -185,6 +211,9 @@ def create_app() -> FastAPI:
         app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
         @app.get("/", include_in_schema=False)
+        @app.get("/signin", include_in_schema=False)
+        @app.get("/signup", include_in_schema=False)
+        @app.get("/reset-password", include_in_schema=False)
         def index():
             return FileResponse(STATIC_DIR / "index.html")
 

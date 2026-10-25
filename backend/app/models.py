@@ -86,6 +86,16 @@ class AuthSession(Base):
     ip_hint: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
 
+class PasswordResetToken(Base):
+    __tablename__ = "password_reset_tokens"
+
+    token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    consumed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
 # ---------------------------------------------------------------------------
 # Project + inputs
 # ---------------------------------------------------------------------------

@@ -41,6 +41,23 @@ class LoginIn(BaseModel):
     password: str = Field(min_length=1, max_length=256)
 
 
+class RegisterIn(BaseModel):
+    name: str | None = Field(default=None, max_length=120)
+    email: str = Field(min_length=3, max_length=320)
+    password: str = Field(min_length=1, max_length=256)
+    confirm_password: str = Field(min_length=1, max_length=256)
+
+
+class PasswordResetRequestIn(BaseModel):
+    email: str = Field(min_length=3, max_length=320)
+
+
+class PasswordResetConfirmIn(BaseModel):
+    token: str = Field(min_length=1, max_length=256)
+    password: str = Field(min_length=1, max_length=256)
+    confirm_password: str = Field(min_length=1, max_length=256)
+
+
 class CapabilitiesOut(BaseModel):
     drawing_interpretation: bool
     transcription: bool

@@ -263,6 +263,19 @@ def set_session_cookies(response, raw_token: str, session: AuthSession) -> None:
     response.set_cookie(CSRF_COOKIE, session.csrf_token, httponly=False, **common)
 
 
+def set_pre_auth_csrf_cookie(response, token: str) -> None:
+    settings = get_settings()
+    response.set_cookie(
+        CSRF_COOKIE,
+        token,
+        max_age=3600,
+        path="/",
+        httponly=False,
+        samesite="lax",
+        secure=settings.cookie_secure,
+    )
+
+
 def clear_session_cookies(response) -> None:
     response.delete_cookie(SESSION_COOKIE, path="/")
     response.delete_cookie(CSRF_COOKIE, path="/")

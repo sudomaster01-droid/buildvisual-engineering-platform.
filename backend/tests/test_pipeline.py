@@ -129,6 +129,38 @@ def test_refresh_recovery_finds_the_active_job(client, login):
                for stage in active["progress"])
 
 
+def test_failed_progress_rail_uses_persisted_step_states(client, login):
+    login()
+    created = client.post("/api/jobs", data={"text": HOUSE_TEXT})
+    assert created.status_code == 201
+    job_id = created.json()["job"]["id"]
+
+    from app.db import session_scope
+    from app.models import Job, PipelineStep
+
+    with session_scope() as session:
+        job = session.get(Job, job_id)
+        rows = session.query(PipelineStep).filter_by(job_id=job_id).order_by(
+            PipelineStep.sequence
+        ).all()
+        assert len(rows) == 11
+        for row in rows[:7]:
+            row.state = "succeeded"
+        rows[7].state = "failed"
+        rows[7].error_code = "provider_rejected"
+        job.stage = "failed"
+        job.status = "failed"
+        job.error_code = "provider_error"
+        job.error_message = "The provider rejected all scene requests."
+
+    payload = client.get(f"/api/jobs/{job_id}").json()
+    assert len(payload["progress"]) == 11
+    assert [stage["state"] for stage in payload["progress"]] == [
+        "done", "done", "done", "done", "done", "done",
+        "done", "failed", "pending", "pending", "pending",
+    ]
+
+
 def test_cancellation_stops_the_job(client, login):
     login()
     created = client.post("/api/jobs", data={"text": HOUSE_TEXT}, headers={"Idempotency-Key": "cancel-1"})

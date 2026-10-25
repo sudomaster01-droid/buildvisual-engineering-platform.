@@ -18,6 +18,7 @@ model reported, so "measured on the drawing" is never confused with "guessed".
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import math
 from typing import Any
@@ -223,7 +224,7 @@ def spec_from_observations(
 
     usage_report = {
         "warnings": warnings[:12],
-        "unresolved": [u["description"] for u in spec.unresolved],
+        "unresolved": [u.description for u in spec.unresolved],
         "rooms": len(rooms),
         "levels": len(levels),
         "measured_rooms": factual,
@@ -243,6 +244,7 @@ def _optional_float(value: Any) -> float | None:
 
 
 def _room_from_raw(room_raw: dict, level_index: int) -> Room | None:
+    """Build a room, treating model-estimated dimensions as inferred."""
     try:
         x = float(room_raw.get("x", 0.0))
         y = float(room_raw.get("y", 0.0))
@@ -260,14 +262,19 @@ def _room_from_raw(room_raw: dict, level_index: int) -> Room | None:
     except (TypeError, ValueError):
         confidence = 0.55
     name = str(room_raw.get("name") or room_type.value.title())[:60]
+    stable_key = (
+        f"{level_index}\0{room_type.value}\0{name}\0"
+        f"{x:.6f}\0{y:.6f}\0{w:.6f}\0{d:.6f}"
+    )
+    stable_id = hashlib.sha256(stable_key.encode("utf-8")).hexdigest()[:10]
     return Room(
-        id=f"L{level_index}_{room_type.value}_{abs(hash((name, x, y, w, d))) % 100000:05d}",
+        id=f"L{level_index}_{room_type.value}_{stable_id}",
         name=name,
         type=room_type,
         level=level_index,
         polygon=[(x, y), (x + w, y), (x + w, y + d), (x, y + d)],
         ceiling_height_m=2.7,
-        source=SourceType.DRAWING_DIMENSION if confidence >= 0.7 else SourceType.INFERRED,
+        source=SourceType.INFERRED,
         confidence=round(confidence, 3),
     )
 

@@ -16,10 +16,10 @@ from ...errors import (
     ValidationError,
 )
 from ...models import Job, SourceArtifact, Transcript, VideoVersion
+from ...services.intake.validators import pdf_to_images
 from ...services.interpret.drawing import interpret_drawing
 from ...services.interpret.llm import build_llm_client, llm_available
 from ...services.interpret.rules import build_spec_from_requirements
-from ...services.intake.validators import pdf_to_images
 from ...services.jobs import charge, record_event
 from ...services.spec.schema import HouseSpec
 from ...services.speech.transcribe import transcribe, transcription_available
@@ -53,7 +53,7 @@ def validate_input(ctx: StepContext) -> dict[str, Any]:
     if audio is not None and not transcript_id:
         if not transcription_available():
             raise CapabilityUnavailable(
-                "Voice transcription is not configured on this deployment. "
+                "Local voice transcription is not ready on this deployment. "
                 "Type the requirements instead."
             )
         payload_keys = audio.validation_report or {}

@@ -70,6 +70,7 @@ body {
   padding: 2px 8px; border-radius: 999px; white-space: nowrap;
 }
 .topnav { display: flex; gap: 8px; }
+.topnav button[hidden] { display: none; }
 
 /* -------------------------------------------------------------------- main */
 main {
@@ -282,8 +283,12 @@ textarea:focus, input:focus, select:focus {
   background: rgba(3, 7, 18, 0.78); backdrop-filter: blur(6px); padding: 18px;
 }
 .modal[hidden] { display: none; }
+body.auth-required #main > section,
+body.auth-required .foot,
+body.auth-required #historyBtn { display: none; }
 .modalbox {
-  width: min(420px, 100%); display: grid; gap: 10px;
+  width: min(420px, 100%); max-height: min(90vh, 760px); overflow: auto;
+  display: grid; gap: 10px;
   background: linear-gradient(180deg, rgba(18, 31, 66, 0.98), rgba(8, 15, 33, 0.99));
   border: 1px solid var(--line); border-radius: 18px; padding: 26px;
   box-shadow: var(--shadow);
@@ -335,7 +340,7 @@ textarea:focus, input:focus, select:focus {
 .loginbtn.loading .spinner { display: inline-block; }
 .loginbtn.loading { opacity: 0.85; cursor: progress; }
 
-.authlinks { display: flex; justify-content: flex-end; margin-top: 10px; }
+.authlinks { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
 .linklike {
   background: none; border: 0; padding: 4px 2px; cursor: pointer;
   color: var(--text-dim); font: inherit; font-size: 13px; text-decoration: underline;

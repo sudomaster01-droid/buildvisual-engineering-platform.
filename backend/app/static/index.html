@@ -6,9 +6,9 @@
 <title>BuildVisual — architectural walkthroughs from your drawings</title>
 <meta name="description" content="Turn a house drawing, a voice note or a written brief into a cinematic architectural walkthrough. One page, one button, honest progress.">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/static/styles.css">
+<link rel="stylesheet" href="/static/styles.css?v=2">
 </head>
-<body>
+<body class="auth-required">
 <a class="skip" href="#main">Skip to content</a>
 
 <header class="topbar">
@@ -175,9 +175,10 @@
 </footer>
 
 <!-- sign in -->
-<div class="modal" id="authModal" hidden>
-  <form class="modalbox" id="authForm" novalidate>
-    <h2>Sign in</h2>
+<div class="modal" id="authModal" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+  <div class="modalbox">
+    <form id="authForm" class="authview" novalidate>
+    <h2 id="authTitle">Sign in</h2>
     <p class="hint" id="authIntro">One engineer account. Enter your email and password.</p>
 
     <div id="setupNotice" class="notice" hidden></div>
@@ -205,19 +206,61 @@
 
     <button class="primary loginbtn" type="submit" id="loginBtn">
       <span class="spinner" aria-hidden="true"></span>
-      <span id="loginBtnLabel">Login</span>
+      <span id="loginBtnLabel">Sign in</span>
     </button>
 
     <div class="authlinks">
-      <button type="button" id="forgotBtn" class="linklike">Forgot password?</button>
+      <a href="/signup" id="createAccountBtn" class="linklike">Create an account</a>
+      <a href="/reset-password" id="forgotBtn" class="linklike">Forgot password?</a>
     </div>
-
+    </form>
+    <form id="registerForm" class="authview" hidden novalidate>
+      <h2>Create an account</h2>
+      <p class="hint">Create an account to save and manage your projects.</p>
+      <label for="registerName">Name (optional)</label>
+      <input id="registerName" name="name" autocomplete="name" maxlength="120">
+      <label for="registerEmail">Email</label>
+      <input id="registerEmail" type="email" name="email" autocomplete="email"
+             inputmode="email" spellcheck="false" autocapitalize="none" required>
+      <label for="registerPassword">Password</label>
+      <input id="registerPassword" type="password" name="password"
+             autocomplete="new-password" required>
+      <label for="registerConfirm">Confirm password</label>
+      <input id="registerConfirm" type="password" name="confirm_password"
+             autocomplete="new-password" required>
+      <button class="primary loginbtn" type="submit" id="registerBtn">Create account</button>
+      <div class="authlinks">
+        <button type="button" class="linklike backToSignIn">Already have an account? Sign in</button>
+      </div>
+    </form>
+    <form id="resetRequestForm" class="authview" hidden novalidate>
+      <h2>Reset your password</h2>
+      <p class="hint">Enter your email address. If an account matches, reset instructions will be available.</p>
+      <label for="resetEmail">Email</label>
+      <input id="resetEmail" type="email" name="email" autocomplete="email"
+             inputmode="email" spellcheck="false" autocapitalize="none" required>
+      <button class="primary loginbtn" type="submit" id="resetRequestBtn">Send reset instructions</button>
+      <div class="authlinks">
+        <button type="button" class="linklike backToSignIn">Back to sign in</button>
+      </div>
+    </form>
+    <form id="resetConfirmForm" class="authview" hidden novalidate>
+      <h2>Choose a new password</h2>
+      <label for="resetPassword">New password</label>
+      <input id="resetPassword" type="password" name="password" autocomplete="new-password" required>
+      <label for="resetConfirmPassword">Confirm new password</label>
+      <input id="resetConfirmPassword" type="password" name="confirm_password" autocomplete="new-password" required>
+      <button class="primary loginbtn" type="submit" id="resetConfirmBtn">Reset password</button>
+      <div class="authlinks">
+        <button type="button" class="linklike backToSignIn">Back to sign in</button>
+      </div>
+    </form>
     <p id="authError" class="error" role="alert" hidden></p>
     <div id="authHelp" class="notice" hidden></div>
-  </form>
+  </div>
 </div>
 
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
-<script src="/static/app.js"></script>
+<script src="/static/app.js?v=2"></script>
 </body>
 </html>

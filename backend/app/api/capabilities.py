@@ -7,14 +7,15 @@ from fastapi import APIRouter
 from ..config import get_settings
 from ..services.interpret.llm import DEFAULT_MODELS, llm_available
 from ..services.speech.transcribe import transcription_available
-from ..services.video.factory import capability_report, build_provider, is_external
+from ..services.video.factory import build_provider, capability_report, is_external
 from .deps import CurrentUser
 from .schemas import CapabilitiesOut
 
 router = APIRouter(tags=["capabilities"])
 
 _PROVIDER_LABELS = {
-    "veo": "Google Veo 3.1",
+    "gemini_omni": "Google Gemini Omni Flash",
+    "veo": "Google Gemini Omni Flash",
     "runway": "Runway Gen-4.5",
     "local_render": "Built-in model renderer",
 }
@@ -40,9 +41,12 @@ def capabilities(_user: CurrentUser) -> CapabilitiesOut:
             "requirements instead."
         )
     if not transcription_available():
-        limitations.append("Voice notes need a transcription key; type the requirements instead.")
+        limitations.append(
+            "Voice transcription needs Faster-Whisper and local model weights; "
+            "type the requirements instead."
+        )
     if external and not (
-        (provider_name == "veo" and settings.gemini_api_key)
+        (provider_name in {"veo", "gemini_omni"} and settings.gemini_api_key)
         or (provider_name == "runway" and settings.runway_api_key)
     ):
         limitations.append(
@@ -60,6 +64,10 @@ def capabilities(_user: CurrentUser) -> CapabilitiesOut:
     limitations.append(
         "Provider output is guided by reference frames and prompts; no configured video "
         "model accepts a structural lock, so architectural fidelity is not guaranteed."
+    )
+    limitations.append(
+        "Password reset email is not configured. Development reset links are written "
+        "to the server console."
     )
 
     note = (

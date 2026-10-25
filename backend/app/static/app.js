@@ -91,8 +91,11 @@
         `Films are ${caps.max_shots} scenes of about ${caps.shot_seconds}s.`;
       $("drawingHint").textContent =
         `${caps.accepted_drawing_formats.join(", ")} · up to ${caps.max_upload_mb} MB`;
+      const providerLabel = caps.video_provider === "gemini_omni"
+        ? "Gemini Omni Flash"
+        : caps.video_provider;
       $("footProvider").textContent =
-        `${caps.video_provider_external ? "AI video" : "Model render"} · ${caps.video_provider}`;
+        `${caps.video_provider_external ? "AI video" : "Model render"} · ${providerLabel}`;
 
       const limits = caps.limitations || [];
       if (!caps.drawing_interpretation) {
@@ -120,9 +123,40 @@
   }
 
   // ------------------------------------------------------------------- auth
-  // One email field, one password field, one button. Every failure has its own
-  // explanation, and a network problem is never reported as a wrong password.
   const authState = { busy: false, setupRequired: false };
+  const authViews = {
+    signin: $("authForm"),
+    signup: $("registerForm"),
+    reset: $("resetRequestForm"),
+    confirm: $("resetConfirmForm"),
+  };
+
+  function authDestination() {
+    const raw = new URLSearchParams(location.search).get("next") || "/";
+    if (!raw.startsWith("/") || raw.startsWith("//") || raw.includes("\\")) return "/";
+    const url = new URL(raw, location.origin);
+    return url.origin === location.origin ? `${url.pathname}${url.search}${url.hash}` : "/";
+  }
+
+  function authModeForLocation() {
+    if (location.pathname === "/signup") return "signup";
+    if (location.pathname === "/reset-password") {
+      return new URLSearchParams(location.search).has("token") ? "confirm" : "reset";
+    }
+    return "signin";
+  }
+
+  function showAuthMode(mode, { updateLocation = true } = {}) {
+    Object.entries(authViews).forEach(([name, form]) => { form.hidden = name !== mode; });
+    $("authModal").hidden = false;
+    document.body.classList.add("auth-required");
+    setAuthError(null);
+    const paths = { signin: "/signin", signup: "/signup", reset: "/reset-password" };
+    const path = paths[mode] || "/reset-password";
+    if (updateLocation && location.pathname !== path) history.pushState({}, "", path);
+    const focus = authViews[mode].querySelector("input:not([type=hidden])");
+    if (focus) setTimeout(() => focus.focus(), 30);
+  }
 
   function setAuthError(message, { help = null } = {}) {
     const errEl = $("authError");
@@ -141,28 +175,23 @@
     }
   }
 
-  function setAuthBusy(busy, label) {
+  function setAuthBusy(form, busy, label) {
     authState.busy = busy;
-    const btn = $("loginBtn");
+    const btn = form.querySelector('button[type="submit"]');
     btn.classList.toggle("loading", busy);
     btn.disabled = busy;
     btn.setAttribute("aria-busy", String(busy));
-    $("loginBtnLabel").textContent = busy ? (label || "Signing in…") : "Login";
-    $("email").disabled = busy;
-    $("password").disabled = busy;
-  }
-
-  function showAuthModal(visible) {
-    const modal = $("authModal");
-    show(modal, visible);
-    if (visible) {
-      // Preserve whatever address is already typed, otherwise focus sensibly.
-      setTimeout(() => {
-        const email = $("email");
-        if (email.value) $("password").focus();
-        else email.focus();
-      }, 60);
+    const labelEl = btn.querySelector("span:last-child");
+    if (labelEl) {
+      if (busy) {
+        btn.dataset.idleLabel = labelEl.textContent;
+        labelEl.textContent = label;
+      } else {
+        labelEl.textContent = btn.dataset.idleLabel || labelEl.textContent;
+      }
     }
+    form.querySelectorAll("input, button").forEach((control) => { control.disabled = busy; });
+    btn.disabled = busy;
   }
 
   function showSetupNotice(status) {
@@ -180,31 +209,36 @@
     } else {
       authState.setupRequired = false;
       notice.hidden = true;
-      $("authIntro").textContent = "One engineer account. Enter your email and password.";
+      $("authIntro").textContent = "Sign in to continue to BuildVisual.";
     }
   }
 
   function activateSession(session) {
     state.csrf = session.csrf_token || cookie("bv_csrf");
+    document.body.classList.remove("auth-required");
+    $("authModal").hidden = true;
     $("accountBtn").hidden = false;
     $("accountBtn").onclick = signOut;
-    showAuthModal(false);
     $("password").value = "";
   }
 
   async function checkSession() {
     try {
       const status = await api("/api/auth/status");
+      state.csrf = status.csrf_token || cookie("bv_csrf");
       if (status.authenticated) {
         activateSession(status);
+        if (["/signin", "/signup", "/reset-password"].includes(location.pathname)) {
+          location.replace(authDestination());
+        }
         return true;
       }
       showSetupNotice(status);
-      showAuthModal(true);
+      showAuthMode(authModeForLocation(), { updateLocation: false });
       return false;
     } catch (err) {
       // Server unreachable or still starting: say so instead of implying bad details.
-      showAuthModal(true);
+      showAuthMode(authModeForLocation(), { updateLocation: false });
       setAuthError(
         "Cannot reach the BuildVisual server right now. Check your connection, then try again.",
         { help: "If this persists, the server may be restarting. Your work is stored on the server." }
@@ -214,10 +248,14 @@
   }
 
   async function signOut() {
-    try { await api("/api/auth/logout", { method: "POST" }); } catch { /* ignore */ }
-    state.csrf = null;
-    state.activeJobId = null;
-    location.reload();
+    try {
+      await api("/api/auth/logout", { method: "POST" });
+      state.csrf = null;
+      state.activeJobId = null;
+      location.replace("/signin");
+    } catch (err) {
+      toast(`Could not sign out: ${err.message}`);
+    }
   }
 
   $("togglePassword").addEventListener("click", () => {
@@ -231,83 +269,141 @@
     input.focus();
   });
 
-  $("forgotBtn").addEventListener("click", async () => {
-    setAuthError(null);
-    try {
-      const result = await api("/api/auth/password-reset", { method: "POST" });
-      setAuthError(null, {
-        help:
-          escapeHtml(result.message).replace(
-            /(python -m app\.cli set-password)/,
-            "<code>$1</code>"
-          ),
-      });
-    } catch {
-      setAuthError(null, {
-        help:
-          "Password recovery is handled by whoever operates this deployment: run " +
-          "<code>python -m app.cli set-password</code> on the server, then sign in again.",
-      });
+  $("createAccountBtn").addEventListener("click", (event) => {
+    event.preventDefault();
+    showAuthMode("signup");
+  });
+  $("forgotBtn").addEventListener("click", (event) => {
+    event.preventDefault();
+    $("resetEmail").value = $("email").value;
+    showAuthMode("reset");
+  });
+  document.querySelectorAll(".backToSignIn").forEach((button) => {
+    button.addEventListener("click", () => showAuthMode("signin"));
+  });
+  window.addEventListener("popstate", () => {
+    if (document.body.classList.contains("auth-required")) {
+      showAuthMode(authModeForLocation(), { updateLocation: false });
     }
   });
 
+  async function finishAuth(session) {
+    activateSession(session);
+    const destination = authDestination();
+    if (location.pathname !== destination && destination === "/") {
+      history.replaceState({}, "", "/");
+    } else if (destination !== "/" && destination !== location.pathname) {
+      location.replace(destination);
+      return;
+    }
+    await Promise.all([loadCapabilities(), loadProjects(), recoverActiveJob()]);
+    toast(`Signed in as ${session.display_name || session.email}.`);
+  }
+
   $("authForm").addEventListener("submit", async (event) => {
     event.preventDefault();
-    if (authState.busy) return; // guards against double submission
-
-    // Trim the address, never the password: leading/trailing spaces can be part
-    // of a real password, but are always an accident in an email field.
+    if (authState.busy) return;
     const email = $("email").value.trim();
     const password = $("password").value;
-
     if (!email || !password) {
-      setAuthError(
-        !email && !password
-          ? "Enter your email address and password."
-          : !email
-            ? "Enter your email address."
-            : "Enter your password."
-      );
+      setAuthError(!email && !password
+        ? "Enter your email address and password."
+        : !email ? "Enter your email address." : "Enter your password.");
       (!email ? $("email") : $("password")).focus();
       return;
     }
-
     setAuthError(null);
-    setAuthBusy(true);
+    setAuthBusy($("authForm"), true, "Signing in…");
     try {
       const session = await api("/api/auth/login", {
         method: "POST",
         body: JSON.stringify({ email, password }),
       });
-      activateSession(session);
-      await Promise.all([loadCapabilities(), loadProjects(), recoverActiveJob()]);
-      toast(`Signed in as ${session.display_name || session.email}.`);
+      await finishAuth(session);
     } catch (err) {
-      // Distinguish transport failures from credential failures explicitly.
       const isNetwork = err instanceof TypeError || err.status === undefined;
       if (isNetwork) {
-        setAuthError(
-          "Could not reach the server. Check your connection and try again.",
-          { help: "Your email has been kept so you only need to re-enter the password." }
-        );
-      } else if (err.code === "rate_limited") {
-        setAuthError(err.message, {
-          help: "For security, sign-in attempts are limited. Wait for the time shown above.",
-        });
+        setAuthError("Could not reach the server. Check your connection and try again.");
       } else if (err.status === 401) {
-        setAuthError(err.message || "Those sign-in details were not recognised.");
+        setAuthError("Those sign-in details were not recognised. Check the email address and password, then try again.");
         $("password").value = "";
         $("password").focus();
-      } else if (err.status >= 500) {
-        setAuthError(
-          "The server could not complete the sign-in. It has logged the problem — please try again.",
-        );
       } else {
         setAuthError(err.message || "Sign-in failed. Please try again.");
       }
-      // The email stays in the field on every path above.
     } finally {
-      setAuthBusy(false);
+      setAuthBusy($("authForm"), false);
+    }
+  });
+
+  $("registerForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (authState.busy) return;
+    const email = $("registerEmail").value.trim();
+    const password = $("registerPassword").value;
+    const confirmPassword = $("registerConfirm").value;
+    if (password.length < 10) return setAuthError("Password must be at least 10 characters.");
+    if (password !== confirmPassword) return setAuthError("The passwords do not match.");
+    setAuthError(null);
+    setAuthBusy($("registerForm"), true, "Creating account…");
+    try {
+      const session = await api("/api/auth/register", {
+        method: "POST",
+        body: JSON.stringify({
+          name: $("registerName").value.trim() || null,
+          email,
+          password,
+          confirm_password: confirmPassword,
+        }),
+      });
+      await finishAuth(session);
+    } catch (err) {
+      setAuthError(err.message || "Account creation failed. Please try again.");
+    } finally {
+      setAuthBusy($("registerForm"), false);
+    }
+  });
+
+  $("resetRequestForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (authState.busy) return;
+    setAuthError(null);
+    setAuthBusy($("resetRequestForm"), true, "Sending…");
+    try {
+      const result = await api("/api/auth/password-reset", {
+        method: "POST",
+        body: JSON.stringify({ email: $("resetEmail").value.trim() }),
+      });
+      setAuthError(null, { help: escapeHtml(result.message) });
+    } catch (err) {
+      setAuthError(err.message || "Could not request a password reset. Please try again.");
+    } finally {
+      setAuthBusy($("resetRequestForm"), false);
+    }
+  });
+
+  $("resetConfirmForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (authState.busy) return;
+    const password = $("resetPassword").value;
+    const confirmPassword = $("resetConfirmPassword").value;
+    if (password.length < 10) return setAuthError("Password must be at least 10 characters.");
+    if (password !== confirmPassword) return setAuthError("The passwords do not match.");
+    const token = new URLSearchParams(location.search).get("token");
+    if (!token) return setAuthError("This password reset link is missing its token.");
+    setAuthError(null);
+    setAuthBusy($("resetConfirmForm"), true, "Resetting…");
+    try {
+      const result = await api("/api/auth/password-reset/confirm", {
+        method: "POST",
+        body: JSON.stringify({ token, password, confirm_password: confirmPassword }),
+      });
+      showAuthMode("signin");
+      setAuthError(null, { help: escapeHtml(result.message) });
+    } catch (err) {
+      setAuthError(err.message || "Could not reset the password. Request a new link and try again.");
+    } finally {
+      setAuthBusy($("resetConfirmForm"), false);
     }
   });
 

@@ -111,3 +111,152 @@ def test_veo_error_codes_map_to_user_readable_failures():
               ("provider_failed", "provider_empty_output", "provider_safety_filter")}
     for code, message in mapped.items():
         assert message and message != code, code
+
+
+def test_gemini_video_uses_interactions_api_and_reads_rest_video_output(monkeypatch):
+    import base64
+
+    from app.services.video.veo import VeoProvider
+
+    class FakeHttp:
+        def __init__(self):
+            self.request = None
+
+        def request_json(self, method, url, **kwargs):
+            self.request = (method, url, kwargs)
+            return {
+                "id": "interaction-123",
+                "status": "completed",
+                "steps": [{
+                    "type": "model_output",
+                    "content": [{
+                        "type": "video",
+                        "mime_type": "video/mp4",
+                        "data": base64.b64encode(b"clip-bytes").decode("ascii"),
+                    }],
+                }],
+            }
+
+    provider = VeoProvider(api_key="", model="gemini-omni-1.1-flash", http=FakeHttp())
+    monkeypatch.setattr(provider, "_require_key", lambda: None)
+    request = _request(first_frame=b"reference-png")
+    submitted = provider.submit(request, idempotency_key="local-test-id")
+
+    method, url, options = provider.http.request
+    assert method == "POST"
+    assert url.endswith("/v1beta/interactions")
+    assert options["max_attempts"] == 1
+    assert options["retry_on"] == ()
+    body = options["json"]
+    assert body["model"] == "gemini-omni-1.1-flash"
+    assert body["response_format"] == {
+        "type": "video",
+        "aspect_ratio": "16:9",
+        "resolution": "720p",
+    }
+    assert body["input"][0] == {
+        "type": "image",
+        "data": "cmVmZXJlbmNlLXBuZw==",
+        "mime_type": "image/png",
+    }
+    assert provider.poll(submitted.task_id).state == "succeeded"
+    output = provider.fetch(submitted.task_id)
+    assert output.data == b"clip-bytes"
+    assert provider.poll(submitted.task_id).state == "failed"
+
+
+def test_retired_veo_preview_model_is_upgraded_to_current_gemini_model():
+    from app.config import Settings
+
+    settings = Settings(
+        app_env="test",
+        veo_model="veo-3.1-fast-generate-preview",
+    )
+    assert settings.veo_model == "gemini-omni-1.1-flash"
+    assert settings.resolved_video_provider == "local_render"
+
+
+def test_auto_video_provider_never_uses_configured_hosted_credentials():
+    from app.config import Settings
+
+    settings = Settings(
+        app_env="test",
+        video_provider="auto",
+        gemini_api_key="not-a-real-key",
+        runway_api_key="not-a-real-key",
+    )
+    assert settings.resolved_video_provider == "local_render"
+
+
+def test_production_settings_reject_hosted_video_and_vision_providers():
+    import pytest
+
+    from app.config import Settings
+
+    secure = {
+        "app_env": "production",
+        "app_secret": "s" * 40,
+        "engineer_password": "not-a-default-password",
+    }
+    with pytest.raises(ValueError, match="Hosted video providers"):
+        Settings(**secure, video_provider="gemini_omni")
+    with pytest.raises(ValueError, match="Hosted interpretation providers"):
+        Settings(**secure, llm_provider="openai")
+
+
+def test_generation_step_does_not_retry_every_scene_as_a_group():
+    from app.pipeline.runner import STEP_BY_NAME
+
+    assert STEP_BY_NAME["generate_clips"].max_attempts == 1
+
+
+def test_rejected_unaccepted_video_request_is_not_retried_or_charged():
+    from types import SimpleNamespace
+    from unittest.mock import Mock
+
+    from app.errors import ProviderRejected
+    from app.models import ProviderTask, UsageLedger
+    from app.pipeline.steps.generate import _generate_one_shot
+
+    class RejectingProvider:
+        calls = 0
+
+        def validate(self, request):
+            return []
+
+        def estimate_cost_cents(self, request):
+            return (120, "configured_rate", True)
+
+        def submit(self, request, *, idempotency_key):
+            self.calls += 1
+            raise ProviderRejected(
+                "The video service rejected this request.",
+                details={"provider_status": 404},
+            )
+
+    db = Mock()
+    ctx = SimpleNamespace(
+        job=SimpleNamespace(id="job-id", spent_cents=0),
+        db=db,
+        settings=SimpleNamespace(
+            max_provider_attempts_per_shot=2,
+            max_job_spend_cents=0,
+            daily_spend_ceiling_cents=0,
+        ),
+        heartbeat=lambda: None,
+    )
+    provider = RejectingProvider()
+    caps = SimpleNamespace(model="gemini-omni-1.1-flash")
+    shot = SimpleNamespace(id="shot_01", type="approach", duration_s=8)
+
+    outcome = _generate_one_shot(
+        ctx, shot, _request(), provider, "gemini_omni", caps
+    )
+
+    assert provider.calls == 1
+    assert outcome.clip_id is None
+    assert outcome.qa_passed is False
+    assert outcome.qa_report["provider_status"] == 404
+    added = [call.args[0] for call in db.add.call_args_list]
+    assert len(added) == 1 and isinstance(added[0], ProviderTask)
+    assert not any(isinstance(row, UsageLedger) for row in added)

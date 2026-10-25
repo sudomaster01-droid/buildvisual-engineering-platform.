@@ -169,11 +169,20 @@ def _migration_0003_login_attempts(session: Session) -> None:
         log.debug("login_attempts index skipped")
 
 
+def _migration_0004_password_reset_tokens(session: Session) -> None:
+    from . import models  # noqa: F401
+
+    models.PasswordResetToken.__table__.create(
+        bind=session.get_bind(), checkfirst=True
+    )
+
+
 #: Ordered, append-only. Never edit a shipped migration.
 MIGRATIONS: list[tuple[str, callable]] = [
     ("0001_initial", _migration_0001_initial),
     ("0002_indexes", _migration_0002_indexes),
     ("0003_login_attempts", _migration_0003_login_attempts),
+    ("0004_password_reset_tokens", _migration_0004_password_reset_tokens),
 ]
 
 

@@ -1,28 +1,14 @@
-"""Google Veo 3.1 adapter (Gemini API).
+"""Google Gemini Omni Flash video adapter.
 
-Verified against <https://ai.google.dev/gemini-api/docs/veo> on 24 Oct 2026.
-
-Submit   POST {base}/models/{model}:predictLongRunning      (x-goog-api-key)
-         body: {"instances":[{"prompt", "image":{"inlineData":{...}},
-                              "lastFrame":{"inlineData":{...}}}],
-                "parameters":{"aspectRatio","durationSeconds","resolution",
-                              "personGeneration","seed"}}
-Poll     GET  {base}/{operation.name}          → done, response.generateVideoResponse…
-Fetch    GET  {video.uri} with x-goog-api-key  (Veo output URLs require the key)
-
-Documented constraints encoded below: 4/6/8 s clips, 24 fps, 720p/1080p/4k,
-16:9 or 9:16, up to 3 reference images, first+last frame keyframes, natively
-generated audio, output deleted after 2 days, SynthID watermark.
-
-Honest limitation: Veo accepts ordinary images as anchors. It does not document
-depth-map or hard geometric constraint input, so BuildVisual does not claim a
-structural lock.
+The previous Veo 3.1 Preview endpoint has been retired. Omni uses the
+Interactions API and returns generated video bytes in the completed response.
 """
 
 from __future__ import annotations
 
 import base64
 import logging
+import uuid
 
 from ...config import get_settings
 from ...errors import ProviderError
@@ -42,7 +28,7 @@ BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
 
 
 class VeoProvider(VideoProvider):
-    name = "veo"
+    name = "gemini_omni"
 
     def __init__(self, api_key: str | None = None, model: str | None = None,
                  http: ProviderHttp | None = None) -> None:
@@ -50,6 +36,7 @@ class VeoProvider(VideoProvider):
         self.api_key = api_key or settings.gemini_api_key
         self.model = model or settings.veo_model
         self.http = http or ProviderHttp()
+        self._outputs: dict[str, bytes] = {}
         # Credentials are required to *call* the service, not to describe it. This
         # keeps capability reports and contract tests usable without secrets.
         if not self.api_key:
@@ -57,17 +44,11 @@ class VeoProvider(VideoProvider):
 
     #: Provider failures translated into plain language for the engineer.
     FAILURE_MESSAGES = {
-        "provider_failed": "The video service could not complete this scene. It will be retried.",
-        "provider_empty_output": "The video service returned a scene with no footage in it.",
-        "provider_safety_filter": (
-            "The video service declined this scene under its safety policy. "
-            "Try a different description for the property."
-        ),
-        "provider_output_expired": (
-            "The video service had already deleted this scene (its outputs expire after "
-            "two days), so it has to be generated again."
-        ),
-        "provider_quota": "The video service quota is exhausted. Add quota or wait and retry.",
+        "provider_failed": "Google could not complete this scene.",
+        "provider_empty_output": "Google returned no video footage for this scene.",
+        "provider_safety_filter": "Google declined this scene under its safety policy.",
+        "provider_output_expired": "The generated scene is no longer available.",
+        "provider_quota": "The Google video generation quota is exhausted.",
     }
 
     def describe_failure(self, code: str) -> str:
@@ -86,172 +67,132 @@ class VeoProvider(VideoProvider):
     # -- capability discovery -------------------------------------------
     def capabilities(self) -> Capabilities:
         return Capabilities(
-            provider="veo",
+            provider=self.name,
             model=self.model,
-            docs_url="https://ai.google.dev/gemini-api/docs/veo",
-            verified_on="2026-10-24",
+            docs_url="https://ai.google.dev/gemini-api/docs/omni",
+            verified_on="2026-10-25",
             supports_first_frame=True,
-            supports_last_frame=True,
-            max_reference_images=3,
-            durations_s=(4, 6, 8),
+            supports_last_frame=False,
+            max_reference_images=1,
+            durations_s=(8,),
             aspect_ratios=("16:9", "9:16"),
-            resolutions=("720p", "1080p", "4k"),
-            native_audio=True,
+            resolutions=("720p", "1080p"),
+            native_audio=False,
             prompt_max_chars=4000,
-            output_ttl_hours=48.0,
-            watermark="SynthID (invisible provenance watermark)",
-            commercial_use="Permitted under Google's Generative AI API terms; review current terms.",
+            output_ttl_hours=None,
+            watermark=None,
+            commercial_use="Review the current Google Gemini API terms.",
             cost_unit="per second of generated video",
             structural_control=(
-                "Accepts a first-frame image and an optional last frame (interpolation) plus up to "
-                "three reference images. These guide composition and subject appearance; they are not "
-                "documented as hard geometric constraints."
+                "Accepts a reference image with a text prompt; it does not document "
+                "hard geometric constraints."
             ),
             notes=[
-                "8-second clips are required when using 1080p/4k or reference images.",
-                "Generated videos are removed from Google's servers after 2 days.",
-                "Request latency is documented as 11 s to 6 minutes at peak.",
-                "Native audio is always generated.",
+                "The Interactions API returns video output with the completed interaction.",
+                "The provider's documented video request does not expose clip duration.",
+                "The API output contains generated video bytes; no provider URL is needed.",
             ],
         )
-
-    # -- request shape ---------------------------------------------------
-    def _instance(self, request: VideoRequest) -> dict:
-        instance: dict = {"prompt": request.prompt}
-        if request.first_frame:
-            instance["image"] = {
-                "inlineData": {
-                    "mimeType": request.first_frame_mime,
-                    "data": base64.b64encode(request.first_frame).decode("ascii"),
-                }
-            }
-        if request.last_frame and request.first_frame:
-            instance["lastFrame"] = {
-                "inlineData": {
-                    "mimeType": request.last_frame_mime,
-                    "data": base64.b64encode(request.last_frame).decode("ascii"),
-                }
-            }
-        return instance
 
     def submit(self, request: VideoRequest, *, idempotency_key: str) -> SubmitResult:
         self._require_key()
         problems = self.validate(request)
         if problems:
-            raise ProviderError("Veo request rejected before submission: " + "; ".join(problems),
+            raise ProviderError("Gemini video request rejected before submission: " + "; ".join(problems),
                                 retryable=False)
-        payload: dict = {
-            "instances": [self._instance(request)],
-            "parameters": {
-                "aspectRatio": request.aspect_ratio,
-                "durationSeconds": str(request.duration_s),
-                "resolution": request.resolution,
-                "personGeneration": "allow_adult",
-            },
-        }
-        if request.seed is not None:
-            payload["parameters"]["seed"] = int(request.seed)
+        content: list[dict] = []
+        if request.first_frame:
+            content.append({
+                "type": "image",
+                "data": base64.b64encode(request.first_frame).decode("ascii"),
+                "mime_type": request.first_frame_mime,
+            })
+        prompt = request.prompt
         if request.negative_prompt:
-            # Veo has no separate negative field: fold constraints into the prompt
-            # inside the adapter rather than leaking provider syntax upward.
-            payload["instances"][0]["prompt"] = (
-                f"{request.prompt}\n\nAvoid: {request.negative_prompt}."
-            )
+            prompt += f"\n\nAvoid: {request.negative_prompt}."
+        content.append({"type": "text", "text": prompt})
 
-        url = f"{BASE_URL}/models/{self.model}:predictLongRunning"
         data = self.http.request_json(
-            "POST", url,
+            "POST", f"{BASE_URL}/interactions",
             headers={"x-goog-api-key": self.api_key, "Content-Type": "application/json"},
-            json=payload,
+            json={
+                "model": self.model,
+                "input": content,
+                "response_format": {
+                    "type": "video",
+                    "aspect_ratio": request.aspect_ratio,
+                    "resolution": request.resolution,
+                },
+            },
+            # This POST generates billable output and has no documented
+            # idempotency header. Never retry it implicitly at the HTTP layer.
+            max_attempts=1,
+            retry_on=(),
         )
-        operation = data.get("name")
-        if not operation:
-            raise ProviderError("Veo did not return an operation name.",
-                                details={"keys": sorted(data)[:8]})
+        video_bytes = self._video_bytes(data)
+        if not video_bytes:
+            raise ProviderError(
+                "Google completed the interaction without returning video bytes.",
+                details={"interaction_status": data.get("status")},
+                retryable=False,
+            )
+        interaction_id = str(data.get("id") or uuid.uuid4().hex)
+        self._outputs[interaction_id] = video_bytes
         return SubmitResult(
-            task_id=operation, provider=self.name, model=self.model,
-            raw={"operation": operation}, idempotency_key=idempotency_key,
+            task_id=interaction_id,
+            provider=self.name,
+            model=self.model,
+            raw={"interaction_id": interaction_id},
+            idempotency_key=idempotency_key,
         )
 
     def poll(self, task_id: str) -> TaskStatus:
-        self._require_key()
-        url = f"{BASE_URL}/{task_id}"
-        data = self.http.request_json("GET", url, headers={"x-goog-api-key": self.api_key})
-        done = bool(data.get("done"))
-        if data.get("error"):
-            error = data["error"]
-            message = str(error.get("message", ""))[:300]
-            code = error.get("code")
-            retryable = code in (429, 500, 503) or "internal" in message.lower()
-            return TaskStatus(
-                state="failed", provider_state=f"error:{code}", message=message,
-                retryable=retryable, error_code="provider_failed",
-            )
-        if not done:
-            metadata = data.get("metadata") or {}
-            hint = metadata.get("progressPercent")
-            return TaskStatus(
-                state="processing", provider_state="running",
-                progress_hint=f"{hint}%" if hint is not None else None,
-            )
-        sample = self._first_sample(data)
-        if sample is None:
-            return TaskStatus(
-                state="failed", provider_state="done_without_output",
-                message="Veo reported completion without a video.",
-                retryable=True, error_code="provider_empty_output",
-            )
-        blocked = sample.get("raiMediaFilteredReasons")
-        if blocked:
-            return TaskStatus(
-                state="failed", provider_state="filtered",
-                message="The provider's safety filter blocked this shot.",
-                retryable=False, error_code="provider_safety_filter",
-            )
-        return TaskStatus(state="succeeded", provider_state="done")
+        if task_id in self._outputs:
+            return TaskStatus(state="succeeded", provider_state="completed")
+        return TaskStatus(
+            state="failed",
+            provider_state="missing_local_output",
+            message="The completed Gemini interaction output is no longer available.",
+            retryable=False,
+            error_code="provider_output_missing",
+        )
 
     @staticmethod
-    def _first_sample(data: dict) -> dict | None:
-        response = data.get("response") or {}
-        for key in ("generateVideoResponse", "generateVideoResponse_v2"):
-            bucket = response.get(key)
-            if isinstance(bucket, dict):
-                samples = bucket.get("generatedSamples") or bucket.get("generatedVideos")
-                if samples:
-                    return samples[0]
-        for key in ("generatedSamples", "generatedVideos"):
-            if response.get(key):
-                return response[key][0]
+    def _video_bytes(data: dict) -> bytes | None:
+        direct = data.get("output_video")
+        if isinstance(direct, dict) and direct.get("data"):
+            return _decode_video_data(direct["data"])
+        for step in data.get("steps") or []:
+            if step.get("type") != "model_output":
+                continue
+            for item in step.get("content") or []:
+                if item.get("type") == "video" and item.get("data"):
+                    return _decode_video_data(item["data"])
         return None
 
     def fetch(self, task_id: str, status: TaskStatus | None = None) -> VideoOutput:
-        self._require_key()
-        data = self.http.request_json(
-            "GET", f"{BASE_URL}/{task_id}", headers={"x-goog-api-key": self.api_key}
-        )
-        sample = self._first_sample(data)
-        if sample is None:
-            if data.get("done"):
-                raise ProviderError("Veo output is no longer available (expired).",
-                                    details={"reason": "expired"})
-            raise ProviderError("Veo has not finished this shot yet.", retryable=True)
-        video = sample.get("video") or {}
-        uri = video.get("uri")
-        if not uri:
-            inline = video.get("videoBytes")
-            if inline:
-                return VideoOutput(data=base64.b64decode(inline), mime="video/mp4",
-                                   usage={"bytes": len(inline)})
-            raise ProviderError("Veo returned no downloadable URI.")
-        if "expired" in uri or "error" in uri.lower():
-            raise ProviderError("Veo output link has expired.", details={"reason": "expired"})
-        payload = self.http.download(uri, headers={"x-goog-api-key": self.api_key})
+        payload = self._outputs.pop(task_id, None)
+        if payload is None:
+            raise ProviderError(
+                "The completed Gemini interaction output is no longer available.",
+                retryable=False,
+            )
         return VideoOutput(
             data=payload,
-            mime=video.get("mimeType", "video/mp4"),
+            mime="video/mp4",
             usage={"bytes": len(payload)},
-            source_url_redacted="veo:generatedSample",
+            source_url_redacted="gemini:interaction",
         )
+
+
+def _decode_video_data(value: str) -> bytes:
+    try:
+        return base64.b64decode(value, validate=True)
+    except (ValueError, TypeError) as exc:
+        raise ProviderError(
+            "Google returned video data in an unreadable format.",
+            retryable=False,
+        ) from exc
 
     def estimate_cost_cents(self, request: VideoRequest) -> tuple[int, str, bool]:
         settings = get_settings()

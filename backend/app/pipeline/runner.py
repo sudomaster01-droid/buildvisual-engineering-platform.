@@ -65,8 +65,10 @@ STEPS: list[StepSpec] = [
     StepSpec("plan_shots", sm.SHOT_PLANNING, reference.plan_shots, max_attempts=2),
     StepSpec("render_references", sm.REFERENCE_RENDER, reference.render_references, max_attempts=2),
     StepSpec("compose_prompts", sm.PROMPT_COMPOSITION, reference.compose_prompts_step, max_attempts=2),
+    # generate_clips already retries individual shots within the provider budget.
+    # Re-running the whole step repeats successful or rejected provider requests.
     StepSpec("generate_clips", sm.PROVIDER_SUBMITTED, generate.generate_clips,
-             max_attempts=2, retry_on=(Exception,)),
+             max_attempts=1),
     StepSpec("assemble_film", sm.ASSEMBLING, finish.assemble_film, max_attempts=2),
     StepSpec("quality_gate", sm.QUALITY_CHECK, finish.quality_gate, max_attempts=2),
     StepSpec("publish_version", sm.READY_FOR_REVIEW, finish.publish_version, max_attempts=2),

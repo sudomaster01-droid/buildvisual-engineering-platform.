@@ -8,6 +8,7 @@ reported as unavailable rather than silently faked.
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import secrets
 from functools import lru_cache
@@ -18,8 +19,8 @@ from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 EnvName = Literal["development", "test", "production"]
-VideoProviderName = Literal["auto", "veo", "runway", "local_render"]
-LlmProviderName = Literal["none", "gemini", "openai", "anthropic"]
+VideoProviderName = Literal["auto", "veo", "gemini_omni", "runway", "local_render"]
+LlmProviderName = Literal["none", "local_openai", "gemini", "openai", "anthropic"]
 StorageBackendName = Literal["local", "s3"]
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -85,14 +86,16 @@ class Settings(BaseSettings):
     llm_provider: LlmProviderName = "none"
     llm_api_key: str = ""
     llm_model: str = ""  # provider-specific; left blank -> adapter default
+    llm_base_url: str = "http://127.0.0.1:8001/v1"
     transcription_enabled: bool = True
-    transcription_api_key: str = ""  # falls back to llm/openai key
-    transcription_model: str = "whisper-1"
+    transcription_model_path: Path = Path("./models/faster-whisper-small")
+    transcription_device: Literal["cpu", "cuda", "auto"] = "cpu"
+    transcription_compute_type: str = "int8"
 
     # ---- video provider --------------------------------------------------
     video_provider: VideoProviderName = "auto"
     gemini_api_key: str = ""
-    veo_model: str = "veo-3.1-fast-generate-preview"
+    veo_model: str = "gemini-omni-1.1-flash"
     runway_api_key: str = ""
     runway_model: str = "gen4.5"
     runway_api_version: str = "2024-11-06"
@@ -176,6 +179,13 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _validate(self) -> "Settings":
+        if self.veo_model in {
+            "veo-3.1-fast-generate-preview",
+            "veo-3.1-generate-preview",
+        }:
+            self.veo_model = "gemini-omni-1.1-flash"
+        if self.engineer_password and len(self.engineer_password) < 10:
+            raise ValueError("ENGINEER_PASSWORD must be at least 10 characters")
         if self.app_env == "production":
             if not self.app_secret or len(self.app_secret) < 32:
                 raise ValueError(
@@ -183,6 +193,16 @@ class Settings(BaseSettings):
                 )
             if not self.engineer_password:
                 raise ValueError("ENGINEER_PASSWORD must be set in production")
+            if self.video_provider in {"veo", "gemini_omni", "runway"}:
+                raise ValueError(
+                    "Hosted video providers are not permitted in production; "
+                    "use the local renderer until a self-hosted video model is verified."
+                )
+            if self.llm_provider in {"gemini", "openai", "anthropic"}:
+                raise ValueError(
+                    "Hosted interpretation providers are not permitted in production; "
+                    "use local_openai or disable drawing interpretation."
+                )
             if self.storage_backend == "local":
                 # Allowed, but it must be a persistent volume. Warned at startup.
                 pass
@@ -204,6 +224,8 @@ class Settings(BaseSettings):
 
     @property
     def cookie_secure(self) -> bool:
+        if self.app_env == "production":
+            return True
         if self.cookie_secure_override is not None:
             return self.cookie_secure_override
         return self.public_base_url.startswith("https://")
@@ -221,24 +243,22 @@ class Settings(BaseSettings):
         return "none"
 
     @property
-    def transcription_key(self) -> str:
-        return self.transcription_api_key or self.llm_api_key
-
-    @property
     def transcription_available(self) -> bool:
-        return bool(self.transcription_enabled and self.transcription_key)
+        return bool(
+            self.transcription_enabled
+            and importlib.util.find_spec("faster_whisper")
+            and self.transcription_model_path.is_dir()
+        )
 
     @property
     def resolved_video_provider(self) -> str:
-        """Which adapter the pipeline will actually use right now."""
+        """Resolve auto safely to the local renderer, never to a paid endpoint."""
         if self.video_provider == "auto":
-            if self.gemini_api_key:
-                return "veo"
-            if self.runway_api_key:
-                return "runway"
             return "local_render"
-        if self.video_provider == "veo" and not self.gemini_api_key:
+        if self.video_provider in {"veo", "gemini_omni"} and not self.gemini_api_key:
             return "local_render"
+        if self.video_provider == "veo":
+            return "gemini_omni"
         if self.video_provider == "runway" and not self.runway_api_key:
             return "local_render"
         return self.video_provider
@@ -251,7 +271,7 @@ class Settings(BaseSettings):
             "drawing_interpretation": self.resolved_llm_provider != "none",
             "transcription": self.transcription_available,
             "video_provider": provider,
-            "video_provider_is_external": provider in {"veo", "runway"},
+            "video_provider_is_external": provider in {"gemini_omni", "veo", "runway"},
             "generation_mode": (
                 "external_ai" if provider in {"veo", "runway"} else "model_render"
             ),
@@ -298,6 +318,6 @@ def describe_settings() -> dict:
     s = get_settings()
     return json.loads(s.model_dump_json(exclude={
         "app_secret", "engineer_password", "llm_api_key", "gemini_api_key",
-        "runway_api_key", "transcription_api_key", "s3_access_key_id",
+        "runway_api_key", "s3_access_key_id",
         "s3_secret_access_key",
     }))

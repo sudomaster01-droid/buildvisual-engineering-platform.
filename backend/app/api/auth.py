@@ -14,12 +14,18 @@ Design goals (from the login rework request):
 from __future__ import annotations
 
 import logging
+import hashlib
+import re
+from datetime import timedelta
 
 from fastapi import APIRouter, Request, Response
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from ..config import get_settings
 from ..db import utcnow
-from ..errors import AuthError, RateLimited
+from ..errors import AuthError, Conflict, NotFound, RateLimited, ValidationError
+from ..models import AuthSession, PasswordResetToken, User
 from ..security import (
     CSRF_COOKIE,
     SESSION_COOKIE,
@@ -30,14 +36,25 @@ from ..security import (
     create_session,
     current_user_optional,
     ensure_engineer_account,
+    hash_password,
+    new_token,
     normalise_email,
     record_login_attempt,
     revoke_session,
+    set_pre_auth_csrf_cookie,
     set_session_cookies,
     setup_required,
 )
 from .deps import DbSession
-from .schemas import LoginIn, LoginStatusOut, MessageOut, SessionOut
+from .schemas import (
+    LoginIn,
+    LoginStatusOut,
+    MessageOut,
+    PasswordResetConfirmIn,
+    PasswordResetRequestIn,
+    RegisterIn,
+    SessionOut,
+)
 
 router = APIRouter(tags=["auth"])
 log = logging.getLogger("buildvisual.api.auth")
@@ -50,8 +67,33 @@ def _ip(request: Request) -> str:
     return (request.client.host if request.client else "")[:64]
 
 
+def _raise_if_locked(db, key: str, ip_hint: str) -> None:
+    try:
+        check_login_allowed(db, key, ip_hint)
+    except LoginLocked as locked:
+        minutes = max(1, round(locked.retry_after_seconds / 60))
+        raise RateLimited(
+            f"Too many requests. Please try again in about {minutes} minute"
+            f"{'' if minutes == 1 else 's'}.",
+            details={"retry_after_seconds": locked.retry_after_seconds},
+        ) from locked
+
+
+def _valid_email(email: str) -> bool:
+    return bool(
+        len(email) <= 254
+        and re.fullmatch(
+            r"[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@"
+            r"[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?"
+            r"(?:\.[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?)+",
+            email,
+            flags=re.IGNORECASE,
+        )
+    )
+
+
 @router.get("/auth/status", response_model=LoginStatusOut)
-def login_status(request: Request, db: DbSession) -> LoginStatusOut:
+def login_status(request: Request, response: Response, db: DbSession) -> LoginStatusOut:
     """Cheap, always-200 probe the sign-in screen uses to choose its message.
 
     Returning 200 here removes the misleading 401 in the browser console and lets
@@ -67,6 +109,8 @@ def login_status(request: Request, db: DbSession) -> LoginStatusOut:
             email=user.email,
             csrf_token=session.csrf_token if session else None,
         )
+    csrf_token = request.cookies.get(CSRF_COOKIE) or new_token(24)
+    set_pre_auth_csrf_cookie(response, csrf_token)
     needs_setup = setup_required(db)
     return LoginStatusOut(
         authenticated=False,
@@ -78,6 +122,7 @@ def login_status(request: Request, db: DbSession) -> LoginStatusOut:
             if needs_setup
             else None
         ),
+        csrf_token=csrf_token,
     )
 
 
@@ -147,6 +192,64 @@ def login(payload: LoginIn, request: Request, response: Response, db: DbSession)
     )
 
 
+@router.post("/auth/register", response_model=SessionOut, status_code=201)
+def register(
+    payload: RegisterIn, request: Request, response: Response, db: DbSession
+) -> SessionOut:
+    email = normalise_email(payload.email)
+    ip_hint = _ip(request)
+    rate_key = f"signup:{email}"
+    _raise_if_locked(db, rate_key, ip_hint)
+
+    if not _valid_email(email):
+        record_login_attempt(db, rate_key, ip_hint, successful=False)
+        db.commit()
+        raise ValidationError("Enter a valid email address.")
+    if len(payload.password) < 10:
+        record_login_attempt(db, rate_key, ip_hint, successful=False)
+        db.commit()
+        raise ValidationError("Password must be at least 10 characters.")
+    if payload.password != payload.confirm_password:
+        record_login_attempt(db, rate_key, ip_hint, successful=False)
+        db.commit()
+        raise ValidationError("The passwords do not match.")
+
+    existing = db.execute(select(User).where(User.email == email)).scalar_one_or_none()
+    if existing is not None:
+        record_login_attempt(db, rate_key, ip_hint, successful=False)
+        db.commit()
+        raise Conflict("This email already has an account, try signing in.")
+
+    name = (payload.name or "").strip()[:120] or email.split("@", 1)[0]
+    user = User(
+        email=email,
+        password_hash=hash_password(payload.password),
+        display_name=name,
+    )
+    db.add(user)
+    try:
+        db.flush()
+    except IntegrityError:
+        db.rollback()
+        raise Conflict("This email already has an account, try signing in.") from None
+
+    record_login_attempt(db, rate_key, ip_hint, successful=True)
+    raw, session = create_session(
+        db,
+        user,
+        user_agent=request.headers.get("user-agent", ""),
+        ip_hint=ip_hint,
+    )
+    db.commit()
+    set_session_cookies(response, raw, session)
+    return SessionOut(
+        user_id=user.id,
+        email=user.email,
+        display_name=user.display_name,
+        csrf_token=session.csrf_token,
+    )
+
+
 @router.post("/auth/logout", response_model=MessageOut)
 def logout(request: Request, response: Response, db: DbSession) -> MessageOut:
     token = request.cookies.get(SESSION_COOKIE, "")
@@ -174,18 +277,87 @@ def session_info(request: Request, db: DbSession) -> SessionOut:
 
 
 @router.post("/auth/password-reset", response_model=MessageOut)
-def password_reset(_request: Request) -> MessageOut:
-    """Recovery for a single-engineer deployment, without email infrastructure.
+def password_reset(
+    payload: PasswordResetRequestIn, request: Request, db: DbSession
+) -> MessageOut:
+    """Issue a hashed, short-lived reset token without exposing account existence."""
+    email = normalise_email(payload.email)
+    ip_hint = _ip(request)
+    rate_key = f"reset:{email}"
+    _raise_if_locked(db, rate_key, ip_hint)
+    record_login_attempt(db, rate_key, ip_hint, successful=False)
 
-    The response is deliberately identical for every caller and reveals nothing
-    about whether an account exists. Because the password is configured on the
-    server (and reconciled at startup), the honest recovery path is an operator
-    action, not a self-service email. The screen shows the exact command.
-    """
-    return MessageOut(
-        message=(
-            "Password recovery is handled by whoever operates this deployment. "
-            "Run: python -m app.cli set-password  (it will prompt for a new password), "
-            "then sign in again."
+    user = db.execute(select(User).where(User.email == email)).scalar_one_or_none()
+    if user is not None:
+        now = utcnow()
+        for row in db.execute(
+            select(PasswordResetToken).where(
+                PasswordResetToken.user_id == user.id,
+                PasswordResetToken.consumed_at.is_(None),
+            )
+        ).scalars():
+            row.consumed_at = now
+        raw_token = new_token()
+        db.add(
+            PasswordResetToken(
+                token_hash=hashlib.sha256(raw_token.encode()).hexdigest(),
+                user_id=user.id,
+                expires_at=now + timedelta(hours=1),
+            )
         )
+        if get_settings().app_env == "development":
+            reset_url = (
+                f"{get_settings().public_base_url.rstrip('/')}"
+                f"/reset-password?token={raw_token}"
+            )
+            log.info("Development password reset link: %s", reset_url)
+    db.commit()
+    return MessageOut(
+        message="If an account matches that email, reset instructions are ready. "
+        "No email service is configured; development reset links are written to the server console."
     )
+
+
+@router.post("/auth/password-reset/confirm", response_model=MessageOut)
+def confirm_password_reset(
+    payload: PasswordResetConfirmIn, request: Request, db: DbSession
+) -> MessageOut:
+    ip_hint = _ip(request)
+    rate_key = f"reset-confirm:{ip_hint}"
+    _raise_if_locked(db, rate_key, ip_hint)
+    if len(payload.password) < 10:
+        record_login_attempt(db, rate_key, ip_hint, successful=False)
+        db.commit()
+        raise ValidationError("Password must be at least 10 characters.")
+    if payload.password != payload.confirm_password:
+        record_login_attempt(db, rate_key, ip_hint, successful=False)
+        db.commit()
+        raise ValidationError("The passwords do not match.")
+
+    token_hash = hashlib.sha256(payload.token.encode()).hexdigest()
+    reset = db.get(PasswordResetToken, token_hash)
+    now = utcnow()
+    if (
+        reset is None
+        or reset.consumed_at is not None
+        or reset.expires_at <= now
+    ):
+        record_login_attempt(db, rate_key, ip_hint, successful=False)
+        db.commit()
+        raise NotFound("That password reset link is invalid or has expired.")
+    user = db.get(User, reset.user_id)
+    if user is None or not user.is_active:
+        record_login_attempt(db, rate_key, ip_hint, successful=False)
+        db.commit()
+        raise NotFound("That password reset link is invalid or has expired.")
+
+    user.password_hash = hash_password(payload.password)
+    reset.consumed_at = now
+    for session in db.execute(
+        select(AuthSession).where(AuthSession.user_id == user.id)
+    ).scalars():
+        if session.revoked_at is None:
+            session.revoked_at = now
+    record_login_attempt(db, rate_key, ip_hint, successful=True)
+    db.commit()
+    return MessageOut(message="Password reset. Please sign in with your new password.")

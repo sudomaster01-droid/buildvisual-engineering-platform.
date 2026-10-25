@@ -8,18 +8,53 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..db import utcnow
-from ..models import Job, JobEvent, Project, VideoVersion
+from ..models import Job, JobEvent, PipelineStep, Project, VideoVersion
 from ..pipeline import state_machine as sm
 from .schemas import JobOut, ProjectOut, StageOut, VideoOut
 
 
-def progress_for(job: Job) -> list[StageOut]:
-    """Derive the rail from the persisted stage — never from a timer.
-
-    A stage is ``done`` only once the pipeline has moved past it, so the rail can
-    never show a percentage the system cannot justify.
-    """
+def progress_for(job: Job, db: Session | None = None) -> list[StageOut]:
+    """Render stage state from durable step records, not elapsed time."""
     order = sm.PROGRESS_ORDER
+    step_to_stage = {
+        "validate_input": sm.VALIDATING,
+        "interpret_house": sm.INTERPRETING,
+        "build_locked_model": sm.MODEL_BUILD,
+        "complete_design": sm.DESIGN_COMPLETION,
+        "plan_shots": sm.SHOT_PLANNING,
+        "render_references": sm.REFERENCE_RENDER,
+        "compose_prompts": sm.PROMPT_COMPOSITION,
+        "generate_clips": sm.PROVIDER_SUBMITTED,
+        "assemble_film": sm.ASSEMBLING,
+        "quality_gate": sm.QUALITY_CHECK,
+        "publish_version": sm.READY_FOR_REVIEW,
+    }
+    if db is not None:
+        rows = db.execute(
+            select(PipelineStep).where(PipelineStep.job_id == job.id)
+            .order_by(PipelineStep.sequence)
+        ).scalars().all()
+        if rows:
+            state_by_stage = {
+                step_to_stage[row.name]: (
+                    "done" if row.state == "succeeded"
+                    else "failed" if row.state == "failed"
+                    else "current" if row.state == "running"
+                    else "skipped" if row.state == "skipped"
+                    else "pending"
+                )
+                for row in rows if row.name in step_to_stage
+            }
+            return [
+                StageOut(
+                    key=key,
+                    label=sm.stage_label(key),
+                    state=state_by_stage.get(key, "pending"),
+                )
+                for key in order
+            ]
+
+    # Compatibility for jobs created before durable step rows were introduced.
     stage = job.stage
     index = order.index(stage) if stage in order else None
     completed = stage in (sm.READY_FOR_REVIEW, sm.COMPLETED)
@@ -123,7 +158,7 @@ def job_out(db: Session, job: Job, *, include_events: bool = True) -> JobOut:
         stage=job.stage,
         status=job.status,
         input_mode=job.input_mode,
-        progress=progress_for(job),
+        progress=progress_for(job, db),
         current_message=message,
         message_level=level,
         events=events_for(db, job) if include_events else [],

@@ -89,6 +89,8 @@ def client():
     from app.main import create_app
 
     with TestClient(create_app(), base_url="http://testserver") as test_client:
+        status = test_client.get("/api/auth/status")
+        test_client.headers.update({"X-CSRF-Token": status.json()["csrf_token"]})
         yield test_client
 
 

@@ -1,0 +1,23 @@
+services:
+  buildvisual:
+    build:
+      context: ./backend
+      args:
+        INSTALL_LOCAL_AI: ${INSTALL_LOCAL_AI:-false}
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      DATA_DIR: /app/data
+      DATABASE_URL: sqlite:////app/data/buildvisual.db
+      RUN_WORKER_INLINE: "true"
+    ports:
+      - "8000:8000"
+    volumes:
+      - buildvisual-data:/app/data
+      - ./backend/models:/app/models:ro
+
+volumes:
+  buildvisual-data:

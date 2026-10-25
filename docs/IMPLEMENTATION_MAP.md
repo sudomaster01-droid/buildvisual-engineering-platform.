@@ -6,10 +6,10 @@ Legend: **I** implemented, **T** tested, **P** partial, **U** unverified (needs 
 |---|---|---|---|
 | A | Accepted input types, limits, signatures (29,30) | `services/intake/validators.py` | I/T |
 | A | Original stored immutably, checksum, derived artifacts distinct (29,78) | `services/storage.py`, `api/uploads.py`, `source_artifacts` | I/T |
-| A | Voice transcription as alternative input (31) | `services/speech/transcribe.py` | I/U (needs key) |
+| A | Voice transcription as alternative input (31) | `services/speech/transcribe.py` + optional `requirements-local-ai.txt` | P (Faster-Whisper local adapter; package and pinned weights not installed) |
 | A | Unique project/source/job ids, provenance preserved (A) | `db/models.py` | I/T |
 | B | Typed house spec with units, provenance, confidence (34) | `services/spec/schema.py` | I/T |
-| B | Drawing understanding → structured facts (32) | `services/interpret/` (vision adapters + rules) | I/U (needs key) |
+| B | Drawing understanding → structured facts (32) | `services/interpret/` (vision adapters + rules; local OpenAI-compatible endpoint option) | P (local endpoint contract tested; no local model server/weights; estimated room dimensions remain inferred because callouts are not linked to rooms) |
 | B | Merge drawing vs stated requirements, conflicts, no silent invention (35) | `services/interpret/merge.py` | I/T |
 | B | Entropy/information-gain clarification (36,37) | `services/interpret/clarify.py` | I/T |
 | C | Deterministic geometry builder, openings hosted on walls (40) | `services/modeling/geometry.py` | I/T |
@@ -48,6 +48,10 @@ Legend: **I** implemented, **T** tested, **P** partial, **U** unverified (needs 
 1. Drawing→spec accuracy is bounded by the vision model; no CAD/vector extraction of PDF linework.
    PDF pages are rasterised and read as images. DWG/IFC/RVT/DXF are **not** advertised or accepted.
 2. No semantic (vision-LLM) QA pass; QA is deterministic image statistics + reference comparison.
-3. Real provider calls and real cost figures are **unverified** here (no credentials in this
-   environment). Adapter contract tests use recorded/mock transports.
-4. Audio: provider-native audio is preserved; no music library, no licensed score.
+3. Real hosted provider calls and real cost figures are **unverified** here. Adapter
+   contract tests use mocked transports. Production configuration now refuses hosted
+   interpretation/video providers.
+4. Local voice and vision adapters are integrated but their checkpoint inference is
+   unverified; exact weights and runtime state are recorded in
+   [OPEN_SOURCE_INVENTORY.md](./OPEN_SOURCE_INVENTORY.md).
+5. Audio: provider-native audio is preserved; no music library, no licensed score.

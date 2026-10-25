@@ -135,10 +135,30 @@ def generate_clips(ctx: StepContext) -> dict[str, Any]:
     total_cost = _job_spend_cents(ctx)
 
     if len(failed_shots) == len(outcomes):
+        generated = [outcome for outcome in outcomes.values() if outcome.clip_id]
+        if not generated:
+            raise ProviderError(
+                "The video provider did not return any scenes. Check the provider "
+                "configuration and error details before trying again.",
+                details={
+                    "failed_shots": failed_shots,
+                    "provider_errors": {
+                        shot_id: outcome.qa_report
+                        for shot_id, outcome in outcomes.items()
+                    },
+                },
+                retryable=False,
+            )
         raise ProviderError(
-            "None of the scenes passed the quality checks, so no video could be produced.",
-            details={"failed_shots": failed_shots},
-            retryable=True,
+            "All generated scenes failed the quality checks, so no video could be produced.",
+            details={
+                "failed_shots": failed_shots,
+                "scene_quality": {
+                    shot_id: outcome.qa_report
+                    for shot_id, outcome in outcomes.items()
+                },
+            },
+            retryable=False,
         )
 
     job.diagnostics = {
@@ -170,7 +190,7 @@ def generate_clips(ctx: StepContext) -> dict[str, Any]:
 
 
 def _provider_configured(ctx: StepContext, name: str) -> bool:
-    if name == "veo":
+    if name in {"veo", "gemini_omni"}:
         return bool(ctx.settings.gemini_api_key)
     if name == "runway":
         return bool(ctx.settings.runway_api_key)
@@ -315,9 +335,10 @@ def _generate_one_shot(ctx, shot, request, provider, provider_name, caps) -> Sho
         except ProviderRateLimited as exc:
             task.status = "failed"
             task.error_code = exc.code
-            task.error_message = exc.user_message
+            task.error_message = _provider_error_summary(exc)
             ctx.db.flush()
-            _charge_attempt(ctx, shot, provider_name, caps.model, estimate_cents, basis, estimated, attempt, failed=True)
+            if task.external_id:
+                _charge_attempt(ctx, shot, provider_name, caps.model, estimate_cents, basis, estimated, attempt, failed=True)
             if attempt == max_attempts:
                 raise
             _backoff(attempt)
@@ -325,11 +346,18 @@ def _generate_one_shot(ctx, shot, request, provider, provider_name, caps) -> Sho
         except ProviderError as exc:
             task.status = "failed"
             task.error_code = exc.code
-            task.error_message = exc.user_message[:500]
+            task.error_message = _provider_error_summary(exc)
             task.completed_at = _utcnow()
             ctx.db.flush()
-            _charge_attempt(ctx, shot, provider_name, caps.model, estimate_cents, basis, estimated, attempt, failed=True)
-            last_report = {"error": exc.user_message}
+            if task.external_id:
+                _charge_attempt(ctx, shot, provider_name, caps.model, estimate_cents, basis, estimated, attempt, failed=True)
+            last_report = {
+                "error": exc.user_message,
+                "error_code": exc.code,
+                "provider_status": exc.details.get("provider_status"),
+                "provider": provider_name,
+                "model": caps.model,
+            }
             if not exc.retryable or attempt == max_attempts:
                 log.warning("shot %s failed after %s attempt(s): %s", shot.id, attempt, exc.user_message)
                 return ShotOutcome(
@@ -491,6 +519,12 @@ def _charge_attempt(ctx, shot, provider_name, model, cents, basis, estimated, at
         basis=basis, estimated=estimated,
         detail={"shot_id": shot.id, "attempt": attempt, "model": model, "failed": failed},
     )
+
+
+def _provider_error_summary(exc: ProviderError) -> str:
+    status = exc.details.get("provider_status")
+    suffix = f" (HTTP {status})" if status else ""
+    return f"{exc.code}{suffix}: {exc.user_message}"[:500]
 
 
 def _backoff(attempt: int) -> None:

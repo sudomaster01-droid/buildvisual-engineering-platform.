@@ -17,18 +17,18 @@ log = logging.getLogger("buildvisual.provider")
 
 
 def provider_names() -> list[str]:
-    return ["veo", "runway", "local_render"]
+    return ["gemini_omni", "runway", "local_render"]
 
 
 def is_external(name: str) -> bool:
-    return name in ("veo", "runway")
+    return name in ("veo", "gemini_omni", "runway")
 
 
 def build_provider(name: str | None = None, **kwargs):
     """Instantiate a provider adapter by name (default: configured)."""
     settings = get_settings()
     resolved = name or settings.resolved_video_provider
-    if resolved == "veo":
+    if resolved in ("veo", "gemini_omni"):
         from .veo import VeoProvider
 
         return VeoProvider()

@@ -134,10 +134,19 @@ class GeminiClient:
 class OpenAIClient:
     provider = "openai"
 
-    def __init__(self, api_key: str, model: str) -> None:
+    def __init__(
+        self,
+        api_key: str,
+        model: str,
+        *,
+        base_url: str = "https://api.openai.com/v1",
+        provider: str = "openai",
+    ) -> None:
         self.api_key = api_key
         self.model = model
-        self.last_usage = LlmUsage(provider=self.provider, model=model)
+        self.base_url = base_url.rstrip("/")
+        self.provider = provider
+        self.last_usage = LlmUsage(provider=provider, model=model)
 
     def generate_json(self, *, system, user, images=None, max_output_tokens=4096) -> dict:
         content: list[dict] = [{"type": "text", "text": user}]
@@ -158,10 +167,13 @@ class OpenAIClient:
             "max_tokens": max_output_tokens,
             "response_format": {"type": "json_object"},
         }
+        headers = {"Content-Type": "application/json"}
+        if self.api_key:
+            headers["Authorization"] = "Bearer " + self.api_key
         with httpx.Client(timeout=REQUEST_TIMEOUT) as client:
             response = client.post(
-                "https://api.openai.com/v1/chat/completions",
-                headers={"Authorization": f"Bearer {self.api_key}"},
+                f"{self.base_url}/chat/completions",
+                headers=headers,
                 json=payload,
             )
         if response.status_code >= 400:
@@ -251,7 +263,18 @@ def build_llm_client() -> LLMClient:
     if provider == "none":
         raise CapabilityUnavailable(
             "No vision/language model is configured, so drawings cannot be interpreted. "
-            "Type or speak the requirements instead, or set LLM_PROVIDER and LLM_API_KEY."
+            "Type or speak the requirements instead, or configure a local model endpoint."
+        )
+    if provider == "local_openai":
+        if not settings.llm_model:
+            raise CapabilityUnavailable(
+                "The local vision model name is missing from LLM_MODEL."
+            )
+        return OpenAIClient(
+            api_key=settings.llm_key,
+            model=settings.llm_model,
+            base_url=settings.llm_base_url,
+            provider="local_openai",
         )
     key = settings.llm_key
     if not key:
@@ -270,4 +293,6 @@ def build_llm_client() -> LLMClient:
 
 def llm_available() -> bool:
     settings = get_settings()
+    if settings.resolved_llm_provider == "local_openai":
+        return bool(settings.llm_model and settings.llm_base_url)
     return settings.resolved_llm_provider != "none" and bool(settings.llm_key)

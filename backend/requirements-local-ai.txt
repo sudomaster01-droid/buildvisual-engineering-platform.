@@ -1,0 +1,3 @@
+# Optional local speech inference; install the separately pinned local checkpoint
+# listed in docs/OPEN_SOURCE_INVENTORY.md. This does not download model weights.
+faster-whisper==1.2.1
