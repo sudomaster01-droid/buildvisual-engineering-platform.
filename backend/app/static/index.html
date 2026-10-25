@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BuildVisual — architectural walkthroughs from your drawings</title>
+<meta name="description" content="Turn a house drawing, a voice note or a written brief into a cinematic architectural walkthrough. One page, one button, honest progress.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="topbar">
+  <div class="brand">
+    <svg viewBox="0 0 32 32" aria-hidden="true" class="logo">
+      <defs>
+        <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#22d3ee"/><stop offset="1" stop-color="#7c5cff"/>
+        </linearGradient>
+      </defs>
+      <rect x="2" y="2" width="28" height="28" rx="8" fill="url(#g)" opacity=".18"/>
+      <path d="M8 22V13l8-5 8 5v9" fill="none" stroke="url(#g)" stroke-width="2.2" stroke-linejoin="round"/>
+      <path d="M13 22v-5h6v5" fill="none" stroke="#8ff2ff" stroke-width="2" stroke-linejoin="round"/>
+    </svg>
+    <span class="brand-name">BuildVisual</span>
+    <span class="brand-tag">one engineer · one page</span>
+  </div>
+  <nav class="topnav">
+    <button id="historyBtn" class="ghost" type="button">Projects</button>
+    <button id="accountBtn" class="ghost" type="button" hidden>Sign out</button>
+  </nav>
+</header>
+
+<main id="main">
+  <!-- ---------------------------------------------------------------- hero -->
+  <section class="hero">
+    <h1>Your client's house, filmed before the first block is laid.</h1>
+    <p class="lede">
+      Upload the drawing, speak the brief, or type it. BuildVisual builds a locked 3D
+      model, completes the design, and renders a cinematic walkthrough you can review
+      and correct.
+    </p>
+    <p id="capabilityNote" class="capability" role="status"></p>
+  </section>
+
+  <!-- ------------------------------------------------------------- composer -->
+  <section class="card composer" id="composer" aria-labelledby="composerTitle">
+    <h2 id="composerTitle" class="sr-only">Describe the house</h2>
+    <div class="tabs" role="tablist" aria-label="Input method">
+      <button class="tab" role="tab" id="tab-drawing" aria-controls="panel-drawing" aria-selected="true">Upload drawing</button>
+      <button class="tab" role="tab" id="tab-voice" aria-controls="panel-voice" aria-selected="false">Speak</button>
+      <button class="tab" role="tab" id="tab-text" aria-controls="panel-text" aria-selected="false">Type</button>
+    </div>
+
+    <div class="panel" id="panel-drawing" role="tabpanel" aria-labelledby="tab-drawing">
+      <label class="drop" id="dropZone" for="drawingInput">
+        <input type="file" id="drawingInput" accept=".pdf,.png,.jpg,.jpeg,.webp" hidden>
+        <svg viewBox="0 0 24 24" class="droplogo" aria-hidden="true"><path d="M12 16V4m0 0L7 9m5-5 5 5M4 17v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        <strong>Drop a floor plan or click to choose</strong>
+        <span id="drawingHint" class="hint">PDF, PNG, JPG or WebP</span>
+        <span id="drawingChosen" class="chosen" hidden></span>
+      </label>
+    </div>
+
+    <div class="panel" id="panel-voice" role="tabpanel" aria-labelledby="tab-voice" hidden>
+      <div class="voice">
+        <button id="recordBtn" class="record" type="button" aria-pressed="false">
+          <span class="dot"></span><span id="recordLabel">Record a brief</span>
+        </button>
+        <div class="voice-meta">
+          <span id="recordState" class="hint">Describe the house, the site and anything the client asked for.</span>
+          <audio id="recordPlayback" controls hidden></audio>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" id="panel-text" role="tabpanel" aria-labelledby="tab-text" hidden>
+      <label class="sr-only" for="textInput">House requirements</label>
+      <textarea id="textInput" rows="4" placeholder="e.g. Four bedroom maisonette on a 15 m plot, gable roof, open plan living and dining, ensuite master, garage and a covered veranda at the front."></textarea>
+      <div class="counter"><span id="textCount">0</span> characters</div>
+    </div>
+
+    <div class="composer-foot">
+      <div class="project-line">
+        <label class="sr-only" for="projectName">Project name</label>
+        <input id="projectName" type="text" placeholder="Project name (optional)" maxlength="120">
+        <select id="projectSelect" aria-label="Existing project">
+          <option value="">New project</option>
+        </select>
+      </div>
+      <button id="generateBtn" class="primary" type="button">Generate Video</button>
+    </div>
+    <p id="composerError" class="error" role="alert" hidden></p>
+  </section>
+
+  <!-- ------------------------------------------------------------- progress -->
+  <section class="card jobcard" id="jobCard" hidden aria-labelledby="jobTitle">
+    <div class="jobhead">
+      <h2 id="jobTitle">Generating your walkthrough</h2>
+      <span id="jobElapsed" class="elapsed"></span>
+    </div>
+    <p id="jobMessage" class="jobmessage" aria-live="polite"></p>
+    <ol class="rail" id="progressRail"></ol>
+    <details class="events" id="eventsBox">
+      <summary>What has happened</summary>
+      <ul id="eventList"></ul>
+    </details>
+    <div class="jobactions">
+      <button id="cancelBtn" class="ghost" type="button">Cancel</button>
+      <button id="retryBtn" class="ghost" type="button" hidden>Try again</button>
+    </div>
+  </section>
+
+  <!-- ---------------------------------------------------------------- video -->
+  <section class="card videocard" id="videoCard" hidden aria-labelledby="videoTitle">
+    <div class="videohead">
+      <h2 id="videoTitle">Your walkthrough</h2>
+      <span id="videoBadge" class="badge"></span>
+    </div>
+    <div class="playerwrap">
+      <video id="player" controls preload="metadata" playsinline></video>
+    </div>
+    <p id="videoMeta" class="videometa"></p>
+    <div class="videoactions">
+      <button id="rectifyBtn" class="primary" type="button">Review &amp; Rectify</button>
+      <a id="downloadBtn" class="button ghost" href="#" download>Download Video</a>
+      <button id="shareBtn" class="ghost" type="button">Share</button>
+      <button id="saveBtn" class="ghost" type="button">Save to Project</button>
+    </div>
+    <div id="shareBox" class="sharebox" hidden>
+      <p>Anyone with this link can watch version <span id="shareVersion">1</span>. It expires automatically and you can revoke it.</p>
+      <div class="sharerow">
+        <input id="shareUrl" type="text" readonly aria-label="Share link">
+        <button id="copyShareBtn" class="ghost" type="button">Copy</button>
+        <button id="revokeShareBtn" class="ghost" type="button">Revoke</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- -------------------------------------------------------------- rectify -->
+  <section class="card rectifycard" id="rectifyCard" hidden aria-labelledby="rectifyTitle">
+    <h2 id="rectifyTitle">Review &amp; Rectify</h2>
+    <p class="hint">Say what to change. Presentation and camera changes keep the approved model; structural changes build a new model version.</p>
+    <div class="chips" id="rectifyChips">
+      <button type="button" class="chip" data-text="Make the lighting warmer and softer">Warmer lighting</button>
+      <button type="button" class="chip" data-text="Show the entrance more clearly and hold that shot longer">Show the entrance longer</button>
+      <button type="button" class="chip" data-text="Use lighter, more minimal furniture">Lighter furniture</button>
+      <button type="button" class="chip" data-text="Change the roof to a gable roof">Gable roof</button>
+    </div>
+    <label class="sr-only" for="rectifyText">Describe the correction</label>
+    <textarea id="rectifyText" rows="3" placeholder="e.g. The entrance shot cuts too fast — hold it a second longer and warm the lighting."></textarea>
+    <div class="rectify-foot">
+      <span id="rectifyUnderstanding" class="understanding"></span>
+      <button id="rectifySubmit" class="primary" type="button">Apply correction</button>
+    </div>
+    <p id="rectifyError" class="error" role="alert" hidden></p>
+  </section>
+
+  <!-- -------------------------------------------------------------- history -->
+  <section class="card historycard" id="historyCard" hidden aria-labelledby="historyTitle">
+    <h2 id="historyTitle">Version history</h2>
+    <ul id="versionList" class="versions"></ul>
+  </section>
+
+  <section class="card historycard" id="projectCard" hidden aria-labelledby="projectTitle">
+    <h2 id="projectTitle">Projects</h2>
+    <ul id="projectList" class="projects"></ul>
+  </section>
+</main>
+
+<footer class="foot">
+  <span>BuildVisual</span>
+  <span id="footProvider"></span>
+</footer>
+
+<!-- sign in -->
+<div class="modal" id="authModal" hidden>
+  <form class="modalbox" id="authForm" novalidate>
+    <h2>Sign in</h2>
+    <p class="hint" id="authIntro">One engineer account. Enter your email and password.</p>
+
+    <div id="setupNotice" class="notice" hidden></div>
+
+    <label for="email">Email</label>
+    <input id="email" type="email" name="email" autocomplete="username"
+           inputmode="email" spellcheck="false" autocapitalize="none" required
+           aria-describedby="authError">
+
+    <label for="password">Password</label>
+    <div class="passwordfield">
+      <input id="password" type="password" name="password"
+             autocomplete="current-password" required aria-describedby="authError">
+      <button type="button" id="togglePassword" class="reveal" aria-label="Show password"
+              aria-pressed="false" tabindex="0">
+        <svg viewBox="0 0 24 24" aria-hidden="true" class="eye">
+          <path d="M2.5 12s3.6-6.5 9.5-6.5S21.5 12 21.5 12s-3.6 6.5-9.5 6.5S2.5 12 2.5 12Z"
+                fill="none" stroke="currentColor" stroke-width="1.6"/>
+          <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.6"/>
+          <line id="eyeSlash" x1="4" y1="20" x2="20" y2="4"
+                stroke="currentColor" stroke-width="1.6" visibility="hidden"/>
+        </svg>
+      </button>
+    </div>
+
+    <button class="primary loginbtn" type="submit" id="loginBtn">
+      <span class="spinner" aria-hidden="true"></span>
+      <span id="loginBtnLabel">Login</span>
+    </button>
+
+    <div class="authlinks">
+      <button type="button" id="forgotBtn" class="linklike">Forgot password?</button>
+    </div>
+
+    <p id="authError" class="error" role="alert" hidden></p>
+    <div id="authHelp" class="notice" hidden></div>
+  </form>
+</div>
+
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+<script src="/static/app.js"></script>
+</body>
+</html>

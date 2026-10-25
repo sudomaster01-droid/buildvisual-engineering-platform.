@@ -1,0 +1,100 @@
+{
+  "template_version": "1.0.0",
+  "name": "Architectural walkthrough",
+  "description": "Versioned prompt grammar for architectural film shots. The engineer never edits these; the composer fills slots deterministically from the locked model and scene manifest.",
+  "global_style": [
+    "cinematic architectural visualisation of a newly designed home",
+    "photorealistic render quality, straight verticals, corrected perspective",
+    "natural daylight, soft global illumination, physically plausible materials",
+    "no text, no captions, no logos, no watermarks, no people",
+    "consistent house identity across the whole film"
+  ],
+  "negative": [
+    "distorted geometry",
+    "warped or bending walls",
+    "melted window frames",
+    "floating furniture",
+    "duplicate rooms",
+    "impossible staircases",
+    "people or animals",
+    "text overlays",
+    "cartoon or illustrative style",
+    "night or dusk lighting unless requested",
+    "camera clipping through walls",
+    "jump cuts inside a shot"
+  ],
+  "shot_types": {
+    "aerial_reveal": {
+      "subject": "aerial view of the whole house and its immediate grounds",
+      "motion": "slow drone ascent with a gentle forward glide, smooth and level, no camera shake",
+      "composition": "house centred in a wide architectural frame, roof plan and footprint legible, horizon level",
+      "lighting": "clean daylight revealing the roof material, facade planes and landscaping",
+      "priority_notes": "establish the building massing and plot clearly"
+    },
+    "drone_orbit": {
+      "subject": "slow orbit around the exterior of the house",
+      "motion": "steady lateral orbit at a constant altitude, constant speed, no zoom",
+      "composition": "the building stays at a consistent size in frame; all four facades become visible",
+      "lighting": "consistent sun direction throughout, no flicker",
+      "priority_notes": "show every facade without changing the building's proportions"
+    },
+    "approach_gate": {
+      "subject": "approach toward the front entrance across the driveway",
+      "motion": "smooth forward dolly at walking-to-driving pace, slight deceleration on arrival",
+      "composition": "entrance door centred, landscaping framing the route, eye level about 1.7 m",
+      "lighting": "front facade evenly lit with soft shadows",
+      "priority_notes": "the door position, canopy and steps must match the reference frame"
+    },
+    "compound_move": {
+      "subject": "lateral move across the compound in front of the house",
+      "motion": "steady tracked movement parallel to the facade",
+      "composition": "frontage shown in perspective, driveway and planting in the foreground",
+      "lighting": "consistent with the approach shot",
+      "priority_notes": "preserve the facade rhythm and window spacing"
+    },
+    "exterior_walkaround": {
+      "subject": "walk-along of the principal facade",
+      "motion": "smooth tracking move with a very slight push toward the building",
+      "composition": "facade openings, material changes and depth read clearly",
+      "lighting": "consistent daylight, soft sky reflections in the glazing",
+      "priority_notes": "keep window and door counts exactly as referenced"
+    },
+    "entrance_walkthrough": {
+      "subject": "stepping through the front door into the entrance hall",
+      "motion": "continuous forward dolly through the doorway, no cut, gentle acceleration then settle",
+      "composition": "door frame in the foreground, interior revealed beyond, eye height about 1.6 m",
+      "lighting": "interior practical lighting balanced against daylight through the glazing",
+      "priority_notes": "door reveal and interior layout must match the reference frames"
+    },
+    "room_walkthrough": {
+      "subject": "moving through the principal interior rooms",
+      "motion": "steady handheld-stabilised walk, slow yaw to reveal the room, no abrupt pans",
+      "composition": "one clear focal point per room, furniture arranged naturally, circulation left clear",
+      "lighting": "warm practical interior lighting, consistent colour temperature between rooms",
+      "priority_notes": "room identity, window positions and furniture layout stay consistent"
+    },
+    "upper_floor": {
+      "subject": "climbing the staircase to the first-floor landing",
+      "motion": "smooth vertical rise following the stair, then a gentle settle at the landing",
+      "composition": "stair geometry legible, treads continuous, landing opening visible ahead",
+      "lighting": "daylight from the upper windows, warm interior fill",
+      "priority_notes": "the stair must have continuous, climbable treads with no gaps"
+    },
+    "closing": {
+      "subject": "hero view of the house from its strongest angle",
+      "motion": "slow push-in, decelerating to a hold",
+      "composition": "whole house balanced in frame, landscape foreground, sky clean",
+      "lighting": "the most flattering daylight for the materials chosen",
+      "priority_notes": "end on the most representative view of the design"
+    }
+  },
+  "correction_directives": {
+    "lighting": "adjust only the lighting and colour temperature",
+    "materials": "adjust only surface finishes, keeping the same geometry",
+    "furniture": "adjust only furniture and styling, keeping the architecture identical",
+    "camera": "change only the camera position, framing or movement",
+    "structural": "the building geometry has changed; follow the new reference frames exactly",
+    "exterior": "improve the exterior presentation and landscaping",
+    "presentation": "improve the overall presentation while keeping the architecture identical"
+  }
+}

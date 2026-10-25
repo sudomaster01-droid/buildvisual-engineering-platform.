@@ -1,0 +1,268 @@
+{
+  "library_version": "1.0.0",
+  "note": "Furniture are parametric primitive assemblies authored in-repo (no third-party meshes). Dimensions in metres. 'parts' are boxes in the item's local frame: x = width axis, y = depth axis, z = up. Placement rules and clearances live in placement.py, not here.",
+  "items": {
+    "sofa_three": {
+      "display_name": "Three-seat sofa",
+      "rooms": ["living"], "footprint": [2.10, 0.92], "height": 0.82,
+      "wall_affinity": "any", "material_slots": {"body": "furniture_soft", "legs": "furniture_wood", "accent": "accent"},
+      "parts": [
+        {"name": "seat", "box": [0.0, 0.0, 0.12, 2.10, 0.92, 0.46], "mat": "body"},
+        {"name": "back", "box": [0.0, 0.72, 0.12, 2.10, 0.92, 0.82], "mat": "body"},
+        {"name": "arm_l", "box": [0.0, 0.0, 0.12, 0.18, 0.92, 0.62], "mat": "body"},
+        {"name": "arm_r", "box": [1.92, 0.0, 0.12, 2.10, 0.92, 0.62], "mat": "body"},
+        {"name": "cushion_a", "box": [0.20, 0.06, 0.46, 0.92, 0.74, 0.58], "mat": "accent"},
+        {"name": "cushion_b", "box": [1.18, 0.06, 0.46, 1.90, 0.74, 0.58], "mat": "accent"},
+        {"name": "leg_a", "box": [0.06, 0.06, 0.0, 0.14, 0.14, 0.12], "mat": "legs"},
+        {"name": "leg_b", "box": [1.96, 0.06, 0.0, 2.04, 0.14, 0.12], "mat": "legs"},
+        {"name": "leg_c", "box": [0.06, 0.78, 0.0, 0.14, 0.86, 0.12], "mat": "legs"},
+        {"name": "leg_d", "box": [1.96, 0.78, 0.0, 2.04, 0.86, 0.12], "mat": "legs"}
+      ]
+    },
+    "armchair": {
+      "display_name": "Armchair",
+      "rooms": ["living", "bedroom", "study"], "footprint": [0.86, 0.86], "height": 0.80,
+      "wall_affinity": "any", "material_slots": {"body": "furniture_soft", "legs": "furniture_wood"},
+      "parts": [
+        {"name": "seat", "box": [0.0, 0.0, 0.12, 0.86, 0.86, 0.44], "mat": "body"},
+        {"name": "back", "box": [0.0, 0.68, 0.12, 0.86, 0.86, 0.80], "mat": "body"},
+        {"name": "arm_l", "box": [0.0, 0.0, 0.12, 0.12, 0.86, 0.60], "mat": "body"},
+        {"name": "arm_r", "box": [0.74, 0.0, 0.12, 0.86, 0.86, 0.60], "mat": "body"},
+        {"name": "leg_a", "box": [0.05, 0.05, 0.0, 0.11, 0.11, 0.12], "mat": "legs"},
+        {"name": "leg_b", "box": [0.75, 0.75, 0.0, 0.81, 0.81, 0.12], "mat": "legs"}
+      ]
+    },
+    "coffee_table": {
+      "display_name": "Coffee table",
+      "rooms": ["living"], "footprint": [1.20, 0.62], "height": 0.40,
+      "wall_affinity": "center", "material_slots": {"top": "furniture_wood"},
+      "parts": [
+        {"name": "top", "box": [0.0, 0.0, 0.36, 1.20, 0.62, 0.40], "mat": "top"},
+        {"name": "plinth", "box": [0.10, 0.10, 0.0, 1.10, 0.52, 0.36], "mat": "top"}
+      ]
+    },
+    "rug_large": {
+      "display_name": "Living rug",
+      "rooms": ["living", "bedroom", "study"], "footprint": [2.80, 1.90], "height": 0.02,
+      "wall_affinity": "center", "material_slots": {"top": "rug_wool"},
+      "flat": true,
+      "parts": [
+        {"name": "pile", "box": [0.0, 0.0, 0.0, 2.80, 1.90, 0.016], "mat": "top"}
+      ]
+    },
+    "tv_unit": {
+      "display_name": "Media unit",
+      "rooms": ["living"], "footprint": [1.80, 0.42], "height": 0.48,
+      "wall_affinity": "wall", "material_slots": {"body": "furniture_wood", "screen": "charcoal"},
+      "parts": [
+        {"name": "cabinet", "box": [0.0, 0.0, 0.0, 1.80, 0.42, 0.48], "mat": "body"},
+        {"name": "screen", "box": [0.42, 0.10, 0.62, 1.38, 0.14, 1.28], "mat": "screen"}
+      ]
+    },
+    "dining_table": {
+      "display_name": "Dining table",
+      "rooms": ["dining", "kitchen"], "footprint": [1.60, 0.90], "height": 0.75,
+      "wall_affinity": "center", "material_slots": {"top": "furniture_wood", "legs": "furniture_dark"},
+      "parts": [
+        {"name": "top", "box": [0.0, 0.0, 0.70, 1.60, 0.90, 0.75], "mat": "top"},
+        {"name": "leg_a", "box": [0.08, 0.08, 0.0, 0.16, 0.16, 0.70], "mat": "legs"},
+        {"name": "leg_b", "box": [1.44, 0.08, 0.0, 1.52, 0.16, 0.70], "mat": "legs"},
+        {"name": "leg_c", "box": [0.08, 0.74, 0.0, 0.16, 0.82, 0.70], "mat": "legs"},
+        {"name": "leg_d", "box": [1.44, 0.74, 0.0, 1.52, 0.82, 0.70], "mat": "legs"}
+      ]
+    },
+    "dining_chair": {
+      "display_name": "Dining chair",
+      "rooms": ["dining", "kitchen"], "footprint": [0.46, 0.46], "height": 0.88,
+      "wall_affinity": "any", "material_slots": {"body": "furniture_wood", "seat": "furniture_soft"},
+      "parts": [
+        {"name": "seat", "box": [0.0, 0.0, 0.42, 0.46, 0.46, 0.48], "mat": "seat"},
+        {"name": "back", "box": [0.0, 0.40, 0.48, 0.46, 0.46, 0.88], "mat": "body"},
+        {"name": "leg_a", "box": [0.03, 0.03, 0.0, 0.09, 0.09, 0.42], "mat": "body"},
+        {"name": "leg_b", "box": [0.37, 0.37, 0.0, 0.43, 0.43, 0.42], "mat": "body"}
+      ]
+    },
+    "kitchen_run": {
+      "display_name": "Kitchen counter run",
+      "rooms": ["kitchen"], "footprint": [3.00, 0.62], "height": 0.92,
+      "wall_affinity": "wall", "material_slots": {"body": "furniture_wood", "top": "stone_honed", "metal": "metalware"},
+      "parts": [
+        {"name": "base", "box": [0.0, 0.0, 0.0, 3.00, 0.60, 0.88], "mat": "body"},
+        {"name": "worktop", "box": [0.0, 0.0, 0.88, 3.00, 0.62, 0.92], "mat": "top"},
+        {"name": "splash", "box": [0.0, 0.0, 0.92, 3.00, 0.05, 1.45], "mat": "top"},
+        {"name": "tap", "box": [1.40, 0.05, 0.92, 1.46, 0.11, 1.22], "mat": "metal"},
+        {"name": "hob", "box": [2.10, 0.10, 0.92, 2.70, 0.55, 0.94], "mat": "metal"},
+        {"name": "upper_a", "box": [0.20, 0.0, 1.50, 1.40, 0.36, 2.20], "mat": "body"},
+        {"name": "upper_b", "box": [1.60, 0.0, 1.50, 2.80, 0.36, 2.20], "mat": "body"}
+      ]
+    },
+    "island": {
+      "display_name": "Kitchen island",
+      "rooms": ["kitchen"], "footprint": [1.80, 0.90], "height": 0.92,
+      "wall_affinity": "center", "material_slots": {"body": "furniture_dark", "top": "stone_honed"},
+      "parts": [
+        {"name": "base", "box": [0.0, 0.0, 0.0, 1.80, 0.90, 0.88], "mat": "body"},
+        {"name": "top", "box": [0.0, 0.0, 0.88, 1.80, 0.90, 0.92], "mat": "top"}
+      ]
+    },
+    "bed_double": {
+      "display_name": "Double bed",
+      "rooms": ["bedroom"], "footprint": [1.60, 2.05], "height": 0.55,
+      "wall_affinity": "wall", "material_slots": {"base": "furniture_wood", "linen": "linen_white", "accent": "accent"},
+      "parts": [
+        {"name": "frame", "box": [0.0, 0.0, 0.10, 1.60, 2.05, 0.32], "mat": "base"},
+        {"name": "mattress", "box": [0.02, 0.02, 0.32, 1.58, 2.03, 0.50], "mat": "linen"},
+        {"name": "duvet", "box": [0.0, 0.35, 0.50, 1.60, 2.05, 0.56], "mat": "linen"},
+        {"name": "pillow_a", "box": [0.12, 0.10, 0.50, 0.74, 0.42, 0.62], "mat": "linen"},
+        {"name": "pillow_b", "box": [0.86, 0.10, 0.50, 1.48, 0.42, 0.62], "mat": "linen"},
+        {"name": "throw", "box": [0.0, 1.55, 0.50, 1.60, 2.05, 0.575], "mat": "accent"},
+        {"name": "headboard", "box": [0.0, 0.0, 0.30, 1.70, 0.08, 1.05], "mat": "base"}
+      ]
+    },
+    "bed_single": {
+      "display_name": "Single bed",
+      "rooms": ["bedroom"], "footprint": [1.00, 1.95], "height": 0.52,
+      "wall_affinity": "wall", "material_slots": {"base": "furniture_wood", "linen": "linen_white"},
+      "parts": [
+        {"name": "frame", "box": [0.0, 0.0, 0.10, 1.00, 1.95, 0.30], "mat": "base"},
+        {"name": "mattress", "box": [0.02, 0.02, 0.30, 0.98, 1.93, 0.48], "mat": "linen"},
+        {"name": "duvet", "box": [0.0, 0.32, 0.48, 1.00, 1.95, 0.535], "mat": "linen"},
+        {"name": "headboard", "box": [0.0, 0.0, 0.28, 1.10, 0.07, 0.95], "mat": "base"}
+      ]
+    },
+    "nightstand": {
+      "display_name": "Nightstand",
+      "rooms": ["bedroom"], "footprint": [0.45, 0.40], "height": 0.55,
+      "wall_affinity": "wall", "material_slots": {"body": "furniture_wood"},
+      "parts": [
+        {"name": "body", "box": [0.0, 0.0, 0.10, 0.45, 0.40, 0.55], "mat": "body"}
+      ]
+    },
+    "wardrobe": {
+      "display_name": "Wardrobe",
+      "rooms": ["bedroom"], "footprint": [1.80, 0.60], "height": 2.20,
+      "wall_affinity": "wall", "material_slots": {"body": "furniture_wood"},
+      "parts": [
+        {"name": "body", "box": [0.0, 0.0, 0.0, 1.80, 0.60, 2.20], "mat": "body"},
+        {"name": "split", "box": [0.88, 0.58, 0.05, 0.92, 0.60, 2.15], "mat": "body"}
+      ]
+    },
+    "desk": {
+      "display_name": "Desk",
+      "rooms": ["study", "bedroom"], "footprint": [1.40, 0.65], "height": 0.75,
+      "wall_affinity": "wall", "material_slots": {"top": "furniture_wood", "legs": "metalware"},
+      "parts": [
+        {"name": "top", "box": [0.0, 0.0, 0.72, 1.40, 0.65, 0.75], "mat": "top"},
+        {"name": "leg_a", "box": [0.05, 0.05, 0.0, 0.09, 0.60, 0.72], "mat": "legs"},
+        {"name": "leg_b", "box": [1.31, 0.05, 0.0, 1.35, 0.60, 0.72], "mat": "legs"}
+      ]
+    },
+    "bath_run": {
+      "display_name": "Bathroom vanity",
+      "rooms": ["bathroom"], "footprint": [1.40, 0.55], "height": 0.88,
+      "wall_affinity": "wall", "material_slots": {"body": "furniture_wood", "top": "stone_honed", "ceramic": "ceramic_white"},
+      "parts": [
+        {"name": "base", "box": [0.0, 0.0, 0.0, 1.40, 0.52, 0.82], "mat": "body"},
+        {"name": "top", "box": [0.0, 0.0, 0.82, 1.40, 0.55, 0.87], "mat": "top"},
+        {"name": "basin", "box": [0.40, 0.12, 0.87, 1.00, 0.46, 1.03], "mat": "ceramic"},
+        {"name": "mirror", "box": [0.18, 0.0, 1.30, 1.22, 0.04, 2.00], "mat": "ceramic"}
+      ]
+    },
+    "bath_tub": {
+      "display_name": "Bath",
+      "rooms": ["bathroom"], "footprint": [1.70, 0.75], "height": 0.58,
+      "wall_affinity": "wall", "material_slots": {"ceramic": "ceramic_white"},
+      "parts": [
+        {"name": "shell", "box": [0.0, 0.0, 0.0, 1.70, 0.75, 0.58], "mat": "ceramic"},
+        {"name": "well", "box": [0.10, 0.09, 0.10, 1.60, 0.66, 0.58], "mat": "ceramic"}
+      ]
+    },
+    "plant_large": {
+      "display_name": "Fiddle-leaf fig",
+      "rooms": ["living", "bedroom", "study", "hall", "dining"], "footprint": [0.55, 0.55], "height": 1.65,
+      "wall_affinity": "any", "material_slots": {"pot": "ceramic_white", "leaf": "leaf_green", "bark": "bark"},
+      "parts": [
+        {"name": "pot", "box": [0.0, 0.0, 0.0, 0.42, 0.42, 0.40], "mat": "pot"},
+        {"name": "trunk", "box": [0.18, 0.18, 0.40, 0.24, 0.24, 1.05], "mat": "bark"},
+        {"name": "crown_a", "box": [0.02, 0.04, 0.95, 0.40, 0.40, 1.35], "mat": "leaf"},
+        {"name": "crown_b", "box": [0.10, 0.10, 1.30, 0.46, 0.46, 1.65], "mat": "leaf"}
+      ]
+    },
+    "floor_lamp": {
+      "display_name": "Floor lamp",
+      "rooms": ["living", "bedroom", "study"], "footprint": [0.38, 0.38], "height": 1.62,
+      "wall_affinity": "any", "material_slots": {"base": "metalware", "shade": "lamp_glow"},
+      "parts": [
+        {"name": "base", "box": [0.0, 0.0, 0.0, 0.30, 0.30, 0.04], "mat": "base"},
+        {"name": "post", "box": [0.13, 0.13, 0.04, 0.17, 0.17, 1.42], "mat": "base"},
+        {"name": "shade", "box": [0.02, 0.02, 1.30, 0.34, 0.34, 1.62], "mat": "shade"}
+      ]
+    },
+    "pendant": {
+      "display_name": "Pendant light",
+      "rooms": ["dining", "kitchen", "living"], "footprint": [0.30, 0.30], "height": 1.10,
+      "wall_affinity": "ceiling", "material_slots": {"shade": "lamp_glow"},
+      "parts": [
+        {"name": "cord", "box": [0.14, 0.14, 0.86, 0.16, 0.16, 1.10], "mat": "shade"},
+        {"name": "shade", "box": [0.0, 0.0, 0.62, 0.30, 0.30, 0.90], "mat": "shade"}
+      ]
+    },
+    "art_canvas": {
+      "display_name": "Artwork",
+      "rooms": ["living", "dining", "hall", "bedroom", "study"], "footprint": [1.05, 0.06], "height": 0.80,
+      "wall_affinity": "wall", "material_slots": {"canvas": "art_canvas"},
+      "parts": [
+        {"name": "canvas", "box": [0.0, 0.0, 1.20, 1.05, 0.05, 2.00], "mat": "canvas"}
+      ]
+    },
+    "bookshelf": {
+      "display_name": "Bookshelf",
+      "rooms": ["study", "living"], "footprint": [1.20, 0.34], "height": 1.90,
+      "wall_affinity": "wall", "material_slots": {"body": "furniture_wood", "detail": "accent"},
+      "parts": [
+        {"name": "carcass", "box": [0.0, 0.0, 0.0, 1.20, 0.34, 1.90], "mat": "body"},
+        {"name": "shelf_1", "box": [0.03, 0.02, 0.45, 1.17, 0.32, 0.49], "mat": "detail"},
+        {"name": "shelf_2", "box": [0.03, 0.02, 0.90, 1.17, 0.32, 0.94], "mat": "detail"},
+        {"name": "shelf_3", "box": [0.03, 0.02, 1.35, 1.17, 0.32, 1.39], "mat": "detail"}
+      ]
+    }
+  },
+  "landscape": {
+    "tree_broadleaf": {
+      "display_name": "Broadleaf tree",
+      "footprint": [3.2, 3.2], "height": 6.2,
+      "material_slots": {"bark": "bark", "leaf": "leaf_deep"},
+      "parts": [
+        {"name": "trunk", "box": [-0.16, -0.16, 0.0, 0.16, 0.16, 2.6], "mat": "bark"},
+        {"name": "canopy_low", "box": [-1.6, -1.6, 2.1, 1.6, 1.6, 4.0], "mat": "leaf"},
+        {"name": "canopy_mid", "box": [-1.25, -1.25, 3.7, 1.25, 1.25, 5.2], "mat": "leaf"},
+        {"name": "canopy_top", "box": [-0.7, -0.7, 4.9, 0.7, 0.7, 6.2], "mat": "leaf"}
+      ]
+    },
+    "tree_slim": {
+      "display_name": "Cypress",
+      "footprint": [1.4, 1.4], "height": 7.0,
+      "material_slots": {"bark": "bark", "leaf": "leaf_deep"},
+      "parts": [
+        {"name": "trunk", "box": [-0.10, -0.10, 0.0, 0.10, 0.10, 1.2], "mat": "bark"},
+        {"name": "canopy", "box": [-0.7, -0.7, 0.9, 0.7, 0.7, 7.0], "mat": "leaf"}
+      ]
+    },
+    "shrub": {
+      "display_name": "Clipped shrub",
+      "footprint": [0.9, 0.9], "height": 0.75,
+      "material_slots": {"leaf": "leaf_green"},
+      "parts": [
+        {"name": "ball", "box": [-0.45, -0.45, 0.0, 0.45, 0.45, 0.75], "mat": "leaf"}
+      ]
+    },
+    "hedge": {
+      "display_name": "Hedge",
+      "footprint": [1.0, 0.7], "height": 1.15,
+      "material_slots": {"leaf": "leaf_deep"},
+      "parts": [
+        {"name": "body", "box": [-0.5, -0.35, 0.0, 0.5, 0.35, 1.15], "mat": "leaf"}
+      ]
+    }
+  }
+}

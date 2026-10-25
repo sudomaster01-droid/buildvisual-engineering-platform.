@@ -1,0 +1,575 @@
+{
+  "library_version": "1.0.0",
+  "note": "All entries are procedurally authored primitive assemblies generated in-repo by BuildVisual. They are not third-party mesh assets, so no attribution obligation applies; each entry still records its provenance so a future replacement with licensed CC0 meshes stays auditable.",
+  "palettes": {
+    "warm_natural": {
+      "display_name": "Warm natural",
+      "description": "Oak, linen, warm white plaster, terracotta accents.",
+      "wall_interior": "plaster_warm",
+      "wall_exterior": "render_sand",
+      "floor": "oak_wide",
+      "floor_wet": "porcelain_matte",
+      "floor_living": "oak_wide",
+      "ceiling": "plaster_white",
+      "roof": "roof_tile",
+      "glazing": "glass_clear",
+      "accent": "terracotta",
+      "lighting_temp_k": 2900,
+      "furniture_wood": "oak_light",
+      "furniture_soft": "linen_beige",
+      "furniture_dark": "walnut",
+      "metalware": "brushed_steel"
+    },
+    "cool_modern": {
+      "display_name": "Cool modern",
+      "description": "Pale microcement, smoked glass, charcoal and muted sage.",
+      "wall_interior": "plaster_white",
+      "wall_exterior": "render_grey",
+      "floor": "microcement",
+      "floor_wet": "slate_matte",
+      "floor_living": "microcement",
+      "ceiling": "plaster_white",
+      "roof": "roof_metal",
+      "glazing": "glass_smoked",
+      "accent": "sage",
+      "lighting_temp_k": 3400,
+      "furniture_wood": "ash_pale",
+      "furniture_soft": "boucle_grey",
+      "furniture_dark": "charcoal",
+      "metalware": "black_steel"
+    },
+    "mediterranean": {
+      "display_name": "Mediterranean",
+      "description": "Lime plaster, terracotta tile, olive and warm stone.",
+      "wall_interior": "plaster_warm",
+      "wall_exterior": "render_cream",
+      "floor": "terracotta_tile",
+      "floor_wet": "stone_honed",
+      "floor_living": "terracotta_tile",
+      "ceiling": "plaster_warm",
+      "roof": "roof_tile",
+      "glazing": "glass_clear",
+      "accent": "olive",
+      "lighting_temp_k": 2700,
+      "furniture_wood": "oak_light",
+      "furniture_soft": "linen_beige",
+      "furniture_dark": "walnut",
+      "metalware": "aged_brass"
+    },
+    "crisp_estate": {
+      "display_name": "Crisp estate",
+      "description": "Bright plaster, pale travertine, navy and brass.",
+      "wall_interior": "plaster_white",
+      "wall_exterior": "render_white",
+      "floor": "travertine",
+      "floor_wet": "porcelain_matte",
+      "floor_living": "travertine",
+      "ceiling": "plaster_white",
+      "roof": "roof_tile",
+      "glazing": "glass_clear",
+      "accent": "navy",
+      "lighting_temp_k": 3000,
+      "furniture_wood": "oak_smoked",
+      "furniture_soft": "linen_grey",
+      "furniture_dark": "navy_lacquer",
+      "metalware": "aged_brass"
+    }
+  },
+  "materials": {
+    "plaster_warm": {
+      "name": "Warm plaster",
+      "color": [
+        0.92,
+        0.89,
+        0.84
+      ],
+      "roughness": 0.92,
+      "metallic": 0.0,
+      "kind": "wall"
+    },
+    "plaster_white": {
+      "name": "White plaster",
+      "color": [
+        0.95,
+        0.95,
+        0.94
+      ],
+      "roughness": 0.9,
+      "metallic": 0.0,
+      "kind": "wall"
+    },
+    "render_sand": {
+      "name": "Sand render",
+      "color": [
+        0.86,
+        0.8,
+        0.7
+      ],
+      "roughness": 0.88,
+      "metallic": 0.0,
+      "kind": "wall"
+    },
+    "render_grey": {
+      "name": "Grey render",
+      "color": [
+        0.74,
+        0.75,
+        0.75
+      ],
+      "roughness": 0.86,
+      "metallic": 0.0,
+      "kind": "wall"
+    },
+    "render_cream": {
+      "name": "Cream render",
+      "color": [
+        0.92,
+        0.89,
+        0.79
+      ],
+      "roughness": 0.9,
+      "metallic": 0.0,
+      "kind": "wall"
+    },
+    "render_white": {
+      "name": "Bright render",
+      "color": [
+        0.96,
+        0.96,
+        0.95
+      ],
+      "roughness": 0.85,
+      "metallic": 0.0,
+      "kind": "wall"
+    },
+    "oak_wide": {
+      "name": "Wide oak plank",
+      "color": [
+        0.66,
+        0.5,
+        0.33
+      ],
+      "roughness": 0.55,
+      "metallic": 0.0,
+      "kind": "wood"
+    },
+    "oak_light": {
+      "name": "Pale oak",
+      "color": [
+        0.74,
+        0.6,
+        0.42
+      ],
+      "roughness": 0.55,
+      "metallic": 0.0,
+      "kind": "wood"
+    },
+    "oak_smoked": {
+      "name": "Smoked oak",
+      "color": [
+        0.45,
+        0.34,
+        0.24
+      ],
+      "roughness": 0.5,
+      "metallic": 0.0,
+      "kind": "wood"
+    },
+    "walnut": {
+      "name": "Walnut",
+      "color": [
+        0.34,
+        0.23,
+        0.16
+      ],
+      "roughness": 0.45,
+      "metallic": 0.0,
+      "kind": "wood"
+    },
+    "ash_pale": {
+      "name": "Pale ash",
+      "color": [
+        0.8,
+        0.74,
+        0.64
+      ],
+      "roughness": 0.55,
+      "metallic": 0.0,
+      "kind": "wood"
+    },
+    "microcement": {
+      "name": "Microcement",
+      "color": [
+        0.68,
+        0.67,
+        0.65
+      ],
+      "roughness": 0.7,
+      "metallic": 0.0,
+      "kind": "floor"
+    },
+    "porcelain_matte": {
+      "name": "Matte porcelain",
+      "color": [
+        0.88,
+        0.88,
+        0.87
+      ],
+      "roughness": 0.4,
+      "metallic": 0.0,
+      "kind": "floor"
+    },
+    "slate_matte": {
+      "name": "Honed slate",
+      "color": [
+        0.35,
+        0.37,
+        0.39
+      ],
+      "roughness": 0.5,
+      "metallic": 0.0,
+      "kind": "floor"
+    },
+    "terracotta_tile": {
+      "name": "Terracotta tile",
+      "color": [
+        0.68,
+        0.42,
+        0.3
+      ],
+      "roughness": 0.72,
+      "metallic": 0.0,
+      "kind": "floor"
+    },
+    "travertine": {
+      "name": "Travertine",
+      "color": [
+        0.85,
+        0.8,
+        0.71
+      ],
+      "roughness": 0.45,
+      "metallic": 0.0,
+      "kind": "floor"
+    },
+    "stone_honed": {
+      "name": "Honed stone",
+      "color": [
+        0.78,
+        0.75,
+        0.7
+      ],
+      "roughness": 0.55,
+      "metallic": 0.0,
+      "kind": "floor"
+    },
+    "glass_clear": {
+      "name": "Clear glazing",
+      "color": [
+        0.66,
+        0.78,
+        0.85
+      ],
+      "roughness": 0.06,
+      "metallic": 0.1,
+      "kind": "glass"
+    },
+    "glass_smoked": {
+      "name": "Smoked glazing",
+      "color": [
+        0.42,
+        0.47,
+        0.52
+      ],
+      "roughness": 0.08,
+      "metallic": 0.15,
+      "kind": "glass"
+    },
+    "roof_tile": {
+      "name": "Clay roof tile",
+      "color": [
+        0.36,
+        0.2,
+        0.16
+      ],
+      "roughness": 0.78,
+      "metallic": 0.0,
+      "kind": "roof"
+    },
+    "roof_metal": {
+      "name": "Standing seam",
+      "color": [
+        0.4,
+        0.42,
+        0.45
+      ],
+      "roughness": 0.32,
+      "metallic": 0.65,
+      "kind": "roof"
+    },
+    "linen_beige": {
+      "name": "Beige linen",
+      "color": [
+        0.8,
+        0.74,
+        0.64
+      ],
+      "roughness": 0.85,
+      "metallic": 0.0,
+      "kind": "fabric"
+    },
+    "linen_grey": {
+      "name": "Grey linen",
+      "color": [
+        0.66,
+        0.66,
+        0.64
+      ],
+      "roughness": 0.85,
+      "metallic": 0.0,
+      "kind": "fabric"
+    },
+    "boucle_grey": {
+      "name": "Grey boucl\u00e9",
+      "color": [
+        0.7,
+        0.7,
+        0.68
+      ],
+      "roughness": 0.95,
+      "metallic": 0.0,
+      "kind": "fabric"
+    },
+    "terracotta": {
+      "name": "Terracotta",
+      "color": [
+        0.72,
+        0.4,
+        0.28
+      ],
+      "roughness": 0.8,
+      "metallic": 0.0,
+      "kind": "fabric"
+    },
+    "sage": {
+      "name": "Muted sage",
+      "color": [
+        0.55,
+        0.62,
+        0.52
+      ],
+      "roughness": 0.85,
+      "metallic": 0.0,
+      "kind": "fabric"
+    },
+    "olive": {
+      "name": "Olive",
+      "color": [
+        0.44,
+        0.47,
+        0.3
+      ],
+      "roughness": 0.85,
+      "metallic": 0.0,
+      "kind": "fabric"
+    },
+    "navy": {
+      "name": "Navy",
+      "color": [
+        0.16,
+        0.21,
+        0.32
+      ],
+      "roughness": 0.8,
+      "metallic": 0.0,
+      "kind": "fabric"
+    },
+    "navy_lacquer": {
+      "name": "Navy lacquer",
+      "color": [
+        0.14,
+        0.18,
+        0.28
+      ],
+      "roughness": 0.25,
+      "metallic": 0.0,
+      "kind": "wood"
+    },
+    "charcoal": {
+      "name": "Charcoal",
+      "color": [
+        0.2,
+        0.2,
+        0.21
+      ],
+      "roughness": 0.6,
+      "metallic": 0.0,
+      "kind": "fabric"
+    },
+    "brushed_steel": {
+      "name": "Brushed steel",
+      "color": [
+        0.72,
+        0.73,
+        0.74
+      ],
+      "roughness": 0.3,
+      "metallic": 0.85,
+      "kind": "metal"
+    },
+    "black_steel": {
+      "name": "Black steel",
+      "color": [
+        0.16,
+        0.16,
+        0.17
+      ],
+      "roughness": 0.35,
+      "metallic": 0.7,
+      "kind": "metal"
+    },
+    "aged_brass": {
+      "name": "Aged brass",
+      "color": [
+        0.72,
+        0.6,
+        0.34
+      ],
+      "roughness": 0.32,
+      "metallic": 0.8,
+      "kind": "metal"
+    },
+    "linen_white": {
+      "name": "White linen",
+      "color": [
+        0.93,
+        0.92,
+        0.89
+      ],
+      "roughness": 0.9,
+      "metallic": 0.0,
+      "kind": "fabric"
+    },
+    "leaf_green": {
+      "name": "Foliage",
+      "color": [
+        0.26,
+        0.42,
+        0.22
+      ],
+      "roughness": 0.92,
+      "metallic": 0.0,
+      "kind": "foliage"
+    },
+    "leaf_deep": {
+      "name": "Deep foliage",
+      "color": [
+        0.19,
+        0.33,
+        0.18
+      ],
+      "roughness": 0.94,
+      "metallic": 0.0,
+      "kind": "foliage"
+    },
+    "bark": {
+      "name": "Bark",
+      "color": [
+        0.3,
+        0.24,
+        0.18
+      ],
+      "roughness": 0.95,
+      "metallic": 0.0,
+      "kind": "wood"
+    },
+    "lawn": {
+      "name": "Lawn",
+      "color": [
+        0.4,
+        0.5,
+        0.31
+      ],
+      "roughness": 0.97,
+      "metallic": 0.0,
+      "kind": "ground"
+    },
+    "paving": {
+      "name": "Paving stone",
+      "color": [
+        0.74,
+        0.72,
+        0.67
+      ],
+      "roughness": 0.85,
+      "metallic": 0.0,
+      "kind": "ground"
+    },
+    "asphalt": {
+      "name": "Driveway",
+      "color": [
+        0.3,
+        0.3,
+        0.31
+      ],
+      "roughness": 0.9,
+      "metallic": 0.0,
+      "kind": "ground"
+    },
+    "water": {
+      "name": "Water",
+      "color": [
+        0.2,
+        0.38,
+        0.45
+      ],
+      "roughness": 0.08,
+      "metallic": 0.2,
+      "kind": "water"
+    },
+    "ceramic_white": {
+      "name": "White ceramic",
+      "color": [
+        0.94,
+        0.94,
+        0.93
+      ],
+      "roughness": 0.16,
+      "metallic": 0.0,
+      "kind": "generic"
+    },
+    "lamp_glow": {
+      "name": "Lamp glass",
+      "color": [
+        1.0,
+        0.92,
+        0.76
+      ],
+      "roughness": 0.2,
+      "metallic": 0.0,
+      "kind": "fixture"
+    },
+    "rug_wool": {
+      "name": "Wool rug",
+      "color": [
+        0.78,
+        0.73,
+        0.66
+      ],
+      "roughness": 0.98,
+      "metallic": 0.0,
+      "kind": "fabric"
+    },
+    "art_canvas": {
+      "name": "Canvas",
+      "color": [
+        0.82,
+        0.78,
+        0.7
+      ],
+      "roughness": 0.9,
+      "metallic": 0.0,
+      "kind": "fabric"
+    }
+  }
+}

@@ -1,0 +1,166 @@
+{
+  "evaluator_version": "1.0.0",
+  "samples": 10,
+  "metric_definitions": {
+    "recall": "flagged / labelled-positive samples for that defect class",
+    "precision_on_clean": "share of clean samples NOT flagged with that defect",
+    "false_alarm_rate_on_clean": "share of clean samples that failed the gate"
+  },
+  "per_class": {
+    "black_frames": {
+      "labelled_positive": 2,
+      "true_positive": 2,
+      "false_negative": 0,
+      "flagged_clean": 0,
+      "precision_on_clean": 1.0,
+      "recall": 1.0
+    },
+    "blurred": {
+      "labelled_positive": 2,
+      "true_positive": 2,
+      "false_negative": 0,
+      "flagged_clean": 0,
+      "precision_on_clean": 1.0,
+      "recall": 1.0
+    },
+    "exposure_clipped": {
+      "labelled_positive": 2,
+      "true_positive": 2,
+      "false_negative": 0,
+      "flagged_clean": 0,
+      "precision_on_clean": 1.0,
+      "recall": 1.0
+    },
+    "frozen_motion": {
+      "labelled_positive": 2,
+      "true_positive": 2,
+      "false_negative": 0,
+      "flagged_clean": 0,
+      "precision_on_clean": 1.0,
+      "recall": 1.0
+    }
+  },
+  "false_alarm_rate_on_clean": 0.0,
+  "rows": [
+    {
+      "label": "clean",
+      "file": "clean_0.mp4",
+      "expected": [],
+      "detected": [],
+      "passed": true,
+      "severity": "none"
+    },
+    {
+      "label": "clean",
+      "file": "clean_1.mp4",
+      "expected": [],
+      "detected": [],
+      "passed": true,
+      "severity": "none"
+    },
+    {
+      "label": "black",
+      "file": "black_0.mp4",
+      "expected": [
+        "black_frames"
+      ],
+      "detected": [
+        "black_frames",
+        "blurred",
+        "exposure_clipped",
+        "frozen_motion"
+      ],
+      "passed": false,
+      "severity": "critical"
+    },
+    {
+      "label": "black",
+      "file": "black_1.mp4",
+      "expected": [
+        "black_frames"
+      ],
+      "detected": [
+        "black_frames",
+        "blurred",
+        "exposure_clipped",
+        "frozen_motion"
+      ],
+      "passed": false,
+      "severity": "critical"
+    },
+    {
+      "label": "frozen",
+      "file": "frozen_0.mp4",
+      "expected": [
+        "frozen_motion"
+      ],
+      "detected": [
+        "blurred",
+        "frozen_motion"
+      ],
+      "passed": false,
+      "severity": "major"
+    },
+    {
+      "label": "frozen",
+      "file": "frozen_1.mp4",
+      "expected": [
+        "frozen_motion"
+      ],
+      "detected": [
+        "blurred",
+        "frozen_motion"
+      ],
+      "passed": false,
+      "severity": "major"
+    },
+    {
+      "label": "blurred",
+      "file": "blurred_0.mp4",
+      "expected": [
+        "blurred"
+      ],
+      "detected": [
+        "blurred"
+      ],
+      "passed": false,
+      "severity": "major"
+    },
+    {
+      "label": "blurred",
+      "file": "blurred_1.mp4",
+      "expected": [
+        "blurred"
+      ],
+      "detected": [
+        "blurred"
+      ],
+      "passed": false,
+      "severity": "major"
+    },
+    {
+      "label": "overexposed",
+      "file": "overexposed_0.mp4",
+      "expected": [
+        "exposure_clipped"
+      ],
+      "detected": [
+        "exposure_clipped"
+      ],
+      "passed": true,
+      "severity": "minor"
+    },
+    {
+      "label": "overexposed",
+      "file": "overexposed_1.mp4",
+      "expected": [
+        "exposure_clipped"
+      ],
+      "detected": [
+        "exposure_clipped"
+      ],
+      "passed": true,
+      "severity": "minor"
+    }
+  ]
+}

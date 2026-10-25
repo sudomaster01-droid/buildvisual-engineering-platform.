@@ -1,0 +1,16 @@
+# BuildVisual runtime dependencies (pinned major/minor, no dev tooling here).
+fastapi==0.118.0
+uvicorn[standard]==0.37.0
+python-multipart==0.0.20
+pydantic==2.11.9
+pydantic-settings==2.10.1
+SQLAlchemy==2.0.43
+argon2-cffi==25.1.0
+numpy==2.3.3
+pillow==11.3.0
+httpx==0.28.1
+pypdf==6.1.0
+PyMuPDF==1.26.4
+
+# Optional, only needed for the S3 storage backend:
+# boto3==1.40.0
